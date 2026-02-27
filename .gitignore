@@ -1,0 +1,30 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.output/
+
+# Cloudflare
+.wrangler/
+.mf/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
