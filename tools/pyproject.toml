@@ -1,0 +1,8 @@
+[project]
+name = "smu-tools"
+version = "0.1.0"
+description = "海大选课通 — 数据导入工具 (上海海事大学)"
+requires-python = ">=3.13"
+dependencies = [
+    "xlrd>=2.0.2",
+]
