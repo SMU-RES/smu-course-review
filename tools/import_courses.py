@@ -435,14 +435,14 @@ def main():
 
     # 5. 提示下一步
     db_name = "ouc-course-review"
-    print(f"\n下一步 — 导入到 D1:")
+    # 相对于项目根目录的路径（tools 的上一级）
+    project_root = script_dir / ".."
+    schema_rel = schema_path.relative_to(project_root.resolve())
+    seed_rel = seed_path.relative_to(project_root.resolve())
+    print(f"\n下一步 — 导入到 D1 (在项目根目录执行):")
     if not args.seed_only:
-        print(
-            f"  npx wrangler d1 execute {db_name} --file={schema_path.relative_to(Path.cwd())} --remote"
-        )
-    print(
-        f"  npx wrangler d1 execute {db_name} --file={seed_path.relative_to(Path.cwd())} --remote"
-    )
+        print(f"  npx wrangler d1 execute {db_name} --file={schema_rel} --remote")
+    print(f"  npx wrangler d1 execute {db_name} --file={seed_rel} --remote")
     print(f"\n本地开发 — 加 --local 参数即可")
 
 
