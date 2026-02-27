@@ -1,0 +1,23 @@
+# 海大选课通 — Cloudflare 配置
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "smu-course-review"
+compatibility_date = "2025-01-01"
+
+# Pages 项目：前端由 Vite 构建到 dist/，后端用 functions/ 目录
+pages_build_output_dir = "dist"
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "ouc-course-review"
+database_id = "58a90fef-00f8-4a84-b382-d38b343cd53d"
+
+# 环境变量（可在 Cloudflare Dashboard 随时修改）
+[vars]
+REQUIRE_AUTH = "true"
+ALLOWED_EMAIL_DOMAIN = "stu.shmtu.edu.cn"
+
+# 定时任务：每 10 分钟导出静态 JSON
+# [triggers]
+# crons = ["*/10 * * * *"]
