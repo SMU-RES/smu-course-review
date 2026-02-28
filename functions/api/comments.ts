@@ -41,9 +41,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const sanitized = sanitize(content.trim())
 
-  // MVP 阶段：user_id = 0 表示匿名用户（D1 不强制 FK 约束）
+  // MVP 阶段：匿名评论，user_id 为 NULL
   await db
-    .prepare('INSERT INTO comments (course_id, user_id, content) VALUES (?, 0, ?)')
+    .prepare('INSERT INTO comments (course_id, content) VALUES (?, ?)')
     .bind(course_id, sanitized)
     .run()
 

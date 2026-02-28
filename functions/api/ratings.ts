@@ -1,5 +1,13 @@
 // POST /api/ratings — 提交评分
 
+async function hashIP(ip: string): Promise<string> {
+  const data = new TextEncoder().encode(ip + 'smu-salt')
+  const hash = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hash).slice(0, 8))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const db = context.env.DB
 
@@ -30,19 +38,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: '课程不存在' }, { status: 404 })
   }
 
-  // MVP 阶段：user_id = 0，UNIQUE(course_id, user_id) 约束意味着匿名只能评一次
-  // 使用 INSERT OR REPLACE 允许更新评分
-  try {
+  // MVP: 基于 IP 哈希去重，同一 IP 对同一课程只能评一次
+  const ip = context.request.headers.get('CF-Connecting-IP') || context.request.headers.get('X-Forwarded-For') || 'unknown'
+  const ipHash = await hashIP(ip)
+
+  // 检查是否已评分
+  const existing = await db
+    .prepare('SELECT id FROM ratings WHERE course_id = ? AND ip_hash = ?')
+    .bind(course_id, ipHash)
+    .first()
+
+  if (existing) {
+    // 更新已有评分
     await db
-      .prepare(
-        `INSERT INTO ratings (course_id, user_id, score)
-         VALUES (?, 0, ?)
-         ON CONFLICT(course_id, user_id) DO UPDATE SET score = excluded.score`
-      )
-      .bind(course_id, score)
+      .prepare('UPDATE ratings SET score = ? WHERE id = ?')
+      .bind(score, existing.id)
       .run()
-  } catch {
-    return Response.json({ error: '评分提交失败' }, { status: 500 })
+  } else {
+    await db
+      .prepare('INSERT INTO ratings (course_id, score, ip_hash) VALUES (?, ?, ?)')
+      .bind(course_id, score, ipHash)
+      .run()
   }
 
   return Response.json({ success: true, message: '评分提交成功' })

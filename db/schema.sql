@@ -52,25 +52,23 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS comments (
     id         INTEGER  PRIMARY KEY AUTOINCREMENT,
     course_id  INTEGER  NOT NULL,
-    user_id    INTEGER  NOT NULL,
+    user_id    INTEGER,
     content    TEXT     NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (course_id) REFERENCES courses(id),
     FOREIGN KEY (user_id)   REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_comments_course ON comments(course_id);
-CREATE INDEX IF NOT EXISTS idx_comments_user   ON comments(user_id);
 
 -- 评分（每人每课仅一次）
 CREATE TABLE IF NOT EXISTS ratings (
     id         INTEGER  PRIMARY KEY AUTOINCREMENT,
     course_id  INTEGER  NOT NULL,
-    user_id    INTEGER  NOT NULL,
+    user_id    INTEGER,
     score      INTEGER  NOT NULL CHECK(score BETWEEN 1 AND 5),
+    ip_hash    TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (course_id) REFERENCES courses(id),
-    FOREIGN KEY (user_id)   REFERENCES users(id),
-    UNIQUE(course_id, user_id)
+    FOREIGN KEY (user_id)   REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_ratings_course ON ratings(course_id);
-CREATE INDEX IF NOT EXISTS idx_ratings_user   ON ratings(user_id);
