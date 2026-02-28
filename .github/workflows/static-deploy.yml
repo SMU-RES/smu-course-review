@@ -2,7 +2,8 @@ name: Deploy Static Mirror
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # 每天 UTC 04:00 (北京时间 12:00)
+    - cron: '0 4 * * *'   # 每天 UTC 04:00 (北京时间 12:00)
+    - cron: '0 12 * * *'  # 每天 UTC 12:00 (北京时间 20:00)
   workflow_dispatch:       # 手动触发
 
 jobs:
