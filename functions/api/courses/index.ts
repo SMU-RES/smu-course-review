@@ -40,9 +40,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // 排序
   let orderBy = 'c.id ASC'
   if (sort === 'rating_count') {
-    orderBy = 'comment_count DESC, c.id ASC'
+    orderBy = 'c.comment_count DESC, c.id ASC'
   } else if (sort === 'avg_rating') {
-    orderBy = 'avg_rating DESC NULLS LAST, c.id ASC'
+    orderBy = 'c.avg_score DESC, c.id ASC'
   }
 
   // 总数
@@ -53,7 +53,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     .bind(...params)
     .first()
 
-  // 课程列表（含评分均值、评论数、教师名列表）
+  // 课程列表（使用预计算字段，无需 JOIN ratings）
   const { results: courses } = await db
     .prepare(
       `SELECT c.id, c.course_code, c.name, c.category,
@@ -63,14 +63,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                FROM course_teachers ct
                JOIN teachers t ON ct.teacher_id = t.id
                WHERE ct.course_id = c.id) AS teacher_names,
-              ROUND(AVG(r.score), 1) AS avg_rating,
-              COUNT(DISTINCT r.id) AS rating_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.course_id = c.id AND cm.parent_id IS NULL) AS comment_count
+              c.avg_score AS avg_rating,
+              c.rating_count,
+              c.comment_count
        FROM courses c
        LEFT JOIN departments d ON c.department_id = d.id
-       LEFT JOIN ratings r ON c.id = r.course_id
        ${where}
-       GROUP BY c.id
        ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`
     )

@@ -59,5 +59,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .run()
   }
 
+  // 更新教师预计算评分字段
+  await db
+    .prepare('UPDATE teachers SET avg_score = (SELECT ROUND(AVG(score), 1) FROM teacher_ratings WHERE teacher_id = ?), rating_count = (SELECT COUNT(*) FROM teacher_ratings WHERE teacher_id = ?) WHERE id = ?')
+    .bind(teacher_id, teacher_id, teacher_id)
+    .run()
+
   return Response.json({ success: true, message: '评分提交成功' })
 }

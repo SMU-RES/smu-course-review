@@ -63,5 +63,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .bind(teacher_id, parent_id ?? null, nickname, sanitized)
     .run()
 
+  // 仅顶级评论计入 comment_count
+  if (!parent_id) {
+    await db
+      .prepare('UPDATE teachers SET comment_count = (SELECT COUNT(*) FROM teacher_comments WHERE teacher_id = ? AND parent_id IS NULL) WHERE id = ?')
+      .bind(teacher_id, teacher_id)
+      .run()
+  }
+
   return Response.json({ success: true, message: '评论提交成功' })
 }

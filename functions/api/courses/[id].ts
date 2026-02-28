@@ -4,12 +4,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const id = context.params.id as string
   const db = context.env.DB
 
-  // 课程基本信息
+  // 课程基本信息（含预计算评分字段）
   const course = await db
     .prepare(
       `SELECT c.id, c.course_code, c.name, c.category,
               c.credits, c.hours,
-              d.name AS department_name
+              d.name AS department_name,
+              c.avg_score, c.rating_count
        FROM courses c
        LEFT JOIN departments d ON c.department_id = d.id
        WHERE c.id = ?`
@@ -33,21 +34,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     .bind(id)
     .all()
 
-  // 评分统计
-  const ratingStats = await db
-    .prepare(
-      `SELECT COUNT(*) AS count, ROUND(AVG(score), 1) AS average
-       FROM ratings WHERE course_id = ?`
-    )
-    .bind(id)
-    .first()
-
-  // 顶级评论（parent_id IS NULL）
+  // 顶级评论（无上限）
   const { results: topComments } = await db
     .prepare(
       `SELECT id, nickname, content, created_at FROM comments
        WHERE course_id = ? AND parent_id IS NULL
-       ORDER BY created_at DESC LIMIT 100`
+       ORDER BY created_at DESC`
     )
     .bind(id)
     .all()
@@ -79,8 +71,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     course,
     teachers,
     rating: {
-      count: ratingStats?.count ?? 0,
-      average: ratingStats?.average ?? 0,
+      count: (course.rating_count as number) ?? 0,
+      average: (course.avg_score as number) ?? 0,
     },
     comments,
   })

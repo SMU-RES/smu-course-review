@@ -82,9 +82,9 @@ export class StaticService implements DataService {
 
     let orderBy = 'c.id ASC'
     if (sort === 'rating_count') {
-      orderBy = 'comment_count DESC, c.id ASC'
+      orderBy = 'c.comment_count DESC, c.id ASC'
     } else if (sort === 'avg_rating') {
-      orderBy = 'avg_rating DESC, c.id ASC'
+      orderBy = 'c.avg_score DESC, c.id ASC'
     }
 
     const countResult = this.queryFirst<{ total: number }>(
@@ -100,14 +100,12 @@ export class StaticService implements DataService {
                FROM course_teachers ct
                JOIN teachers t ON ct.teacher_id = t.id
                WHERE ct.course_id = c.id) AS teacher_names,
-              ROUND(AVG(r.score), 1) AS avg_rating,
-              COUNT(DISTINCT r.id) AS rating_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.course_id = c.id AND cm.parent_id IS NULL) AS comment_count
+              c.avg_score AS avg_rating,
+              c.rating_count,
+              c.comment_count
        FROM courses c
        LEFT JOIN departments d ON c.department_id = d.id
-       LEFT JOIN ratings r ON c.id = r.course_id
        ${where}
-       GROUP BY c.id
        ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`,
       [...sqlParams, limit, offset]
@@ -125,10 +123,11 @@ export class StaticService implements DataService {
     rating: RatingInfo
     comments: Comment[]
   } | null> {
-    const course = this.queryFirst<CourseDetail>(
+    const course = this.queryFirst<CourseDetail & { avg_score: number; rating_count: number }>(
       `SELECT c.id, c.course_code, c.name, c.category,
               c.credits, c.hours,
-              d.name AS department_name
+              d.name AS department_name,
+              c.avg_score, c.rating_count
        FROM courses c
        LEFT JOIN departments d ON c.department_id = d.id
        WHERE c.id = ?`,
@@ -146,16 +145,10 @@ export class StaticService implements DataService {
       [id]
     )
 
-    const ratingStats = this.queryFirst<{ count: number; average: number }>(
-      `SELECT COUNT(*) AS count, ROUND(AVG(score), 1) AS average
-       FROM ratings WHERE course_id = ?`,
-      [id]
-    )
-
     const topComments = this.query<{ id: number; nickname: string; content: string; created_at: string }>(
       `SELECT id, nickname, content, created_at FROM comments
        WHERE course_id = ? AND parent_id IS NULL
-       ORDER BY created_at DESC LIMIT 100`,
+       ORDER BY created_at DESC`,
       [id]
     )
 
@@ -182,8 +175,8 @@ export class StaticService implements DataService {
       course,
       teachers,
       rating: {
-        count: ratingStats?.count ?? 0,
-        average: ratingStats?.average ?? 0,
+        count: course.rating_count ?? 0,
+        average: course.avg_score ?? 0,
       },
       comments,
     }
@@ -208,7 +201,7 @@ export class StaticService implements DataService {
 
     let orderBy = 't.name ASC'
     if (sort === 'rating_count') {
-      orderBy = 'comment_count DESC, t.name ASC'
+      orderBy = 't.comment_count DESC, t.name ASC'
     }
 
     const countResult = this.queryFirst<{ total: number }>(
@@ -220,14 +213,12 @@ export class StaticService implements DataService {
       `SELECT t.id, t.name,
               d.name AS department_name,
               (SELECT COUNT(DISTINCT ct.course_id) FROM course_teachers ct WHERE ct.teacher_id = t.id) AS course_count,
-              ROUND(AVG(tr.score), 1) AS avg_rating,
-              COUNT(DISTINCT tr.id) AS rating_count,
-              (SELECT COUNT(*) FROM teacher_comments tc WHERE tc.teacher_id = t.id AND tc.parent_id IS NULL) AS comment_count
+              t.avg_score AS avg_rating,
+              t.rating_count,
+              t.comment_count
        FROM teachers t
        LEFT JOIN departments d ON t.department_id = d.id
-       LEFT JOIN teacher_ratings tr ON t.id = tr.teacher_id
        ${where}
-       GROUP BY t.id
        ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`,
       [...sqlParams, limit, offset]
@@ -245,8 +236,9 @@ export class StaticService implements DataService {
     rating: RatingInfo
     comments: Comment[]
   } | null> {
-    const teacher = this.queryFirst<TeacherDetail>(
-      `SELECT t.id, t.name, d.name AS department_name
+    const teacher = this.queryFirst<TeacherDetail & { avg_score: number; rating_count: number }>(
+      `SELECT t.id, t.name, d.name AS department_name,
+              t.avg_score, t.rating_count
        FROM teachers t
        LEFT JOIN departments d ON t.department_id = d.id
        WHERE t.id = ?`,
@@ -259,29 +251,21 @@ export class StaticService implements DataService {
       `SELECT c.id, c.course_code, c.name, c.category,
               c.credits, c.hours,
               d.name AS department_name,
-              ROUND(AVG(r.score), 1) AS avg_rating,
-              COUNT(DISTINCT r.id) AS rating_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.course_id = c.id AND cm.parent_id IS NULL) AS comment_count
+              c.avg_score AS avg_rating,
+              c.rating_count,
+              c.comment_count
        FROM course_teachers ct
        JOIN courses c ON ct.course_id = c.id
        LEFT JOIN departments d ON c.department_id = d.id
-       LEFT JOIN ratings r ON c.id = r.course_id
        WHERE ct.teacher_id = ?
-       GROUP BY c.id
        ORDER BY c.name`,
-      [id]
-    )
-
-    const ratingStats = this.queryFirst<{ count: number; average: number }>(
-      `SELECT COUNT(*) AS count, ROUND(AVG(score), 1) AS average
-       FROM teacher_ratings WHERE teacher_id = ?`,
       [id]
     )
 
     const topComments = this.query<{ id: number; nickname: string; content: string; created_at: string }>(
       `SELECT id, nickname, content, created_at FROM teacher_comments
        WHERE teacher_id = ? AND parent_id IS NULL
-       ORDER BY created_at DESC LIMIT 100`,
+       ORDER BY created_at DESC`,
       [id]
     )
 
@@ -308,8 +292,8 @@ export class StaticService implements DataService {
       teacher,
       courses,
       rating: {
-        count: ratingStats?.count ?? 0,
-        average: ratingStats?.average ?? 0,
+        count: teacher.rating_count ?? 0,
+        average: teacher.avg_score ?? 0,
       },
       comments,
     }

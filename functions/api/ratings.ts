@@ -49,7 +49,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first()
 
   if (existing) {
-    // 更新已有评分
     await db
       .prepare('UPDATE ratings SET score = ? WHERE id = ?')
       .bind(score, existing.id)
@@ -60,6 +59,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .bind(course_id, score, ipHash)
       .run()
   }
+
+  // 更新课程预计算评分字段
+  await db
+    .prepare('UPDATE courses SET avg_score = (SELECT ROUND(AVG(score), 1) FROM ratings WHERE course_id = ?), rating_count = (SELECT COUNT(*) FROM ratings WHERE course_id = ?) WHERE id = ?')
+    .bind(course_id, course_id, course_id)
+    .run()
 
   return Response.json({ success: true, message: '评分提交成功' })
 }

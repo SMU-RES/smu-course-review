@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   let orderBy = 't.name ASC'
   if (sort === 'rating_count') {
-    orderBy = 'comment_count DESC, t.name ASC'
+    orderBy = 't.comment_count DESC, t.name ASC'
   }
 
   const countResult = await db
@@ -35,14 +35,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       `SELECT t.id, t.name,
               d.name AS department_name,
               (SELECT COUNT(DISTINCT ct.course_id) FROM course_teachers ct WHERE ct.teacher_id = t.id) AS course_count,
-              ROUND(AVG(tr.score), 1) AS avg_rating,
-              COUNT(DISTINCT tr.id) AS rating_count,
-              (SELECT COUNT(*) FROM teacher_comments tc WHERE tc.teacher_id = t.id AND tc.parent_id IS NULL) AS comment_count
+              t.avg_score AS avg_rating,
+              t.rating_count,
+              t.comment_count
        FROM teachers t
        LEFT JOIN departments d ON t.department_id = d.id
-       LEFT JOIN teacher_ratings tr ON t.id = tr.teacher_id
        ${where}
-       GROUP BY t.id
        ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`
     )

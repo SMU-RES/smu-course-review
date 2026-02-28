@@ -4,10 +4,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const id = context.params.id as string
   const db = context.env.DB
 
-  // 教师基本信息
+  // 教师基本信息（含预计算评分字段）
   const teacher = await db
     .prepare(
-      `SELECT t.id, t.name, d.name AS department_name
+      `SELECT t.id, t.name, d.name AS department_name,
+              t.avg_score, t.rating_count
        FROM teachers t
        LEFT JOIN departments d ON t.department_id = d.id
        WHERE t.id = ?`
@@ -19,41 +20,30 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return Response.json({ error: '教师不存在' }, { status: 404 })
   }
 
-  // 教师的课程列表（含评分和评论统计）
+  // 教师的课程列表（使用预计算字段）
   const { results: courses } = await db
     .prepare(
       `SELECT c.id, c.course_code, c.name, c.category,
               c.credits, c.hours,
               d.name AS department_name,
-              ROUND(AVG(r.score), 1) AS avg_rating,
-              COUNT(DISTINCT r.id) AS rating_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.course_id = c.id AND cm.parent_id IS NULL) AS comment_count
+              c.avg_score AS avg_rating,
+              c.rating_count,
+              c.comment_count
        FROM course_teachers ct
        JOIN courses c ON ct.course_id = c.id
        LEFT JOIN departments d ON c.department_id = d.id
-       LEFT JOIN ratings r ON c.id = r.course_id
        WHERE ct.teacher_id = ?
-       GROUP BY c.id
        ORDER BY c.name`
     )
     .bind(id)
     .all()
 
-  // 教师评分统计
-  const ratingStats = await db
-    .prepare(
-      `SELECT COUNT(*) AS count, ROUND(AVG(score), 1) AS average
-       FROM teacher_ratings WHERE teacher_id = ?`
-    )
-    .bind(id)
-    .first()
-
-  // 教师顶级评论
+  // 教师顶级评论（无上限）
   const { results: topComments } = await db
     .prepare(
       `SELECT id, nickname, content, created_at FROM teacher_comments
        WHERE teacher_id = ? AND parent_id IS NULL
-       ORDER BY created_at DESC LIMIT 100`
+       ORDER BY created_at DESC`
     )
     .bind(id)
     .all()
@@ -85,8 +75,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     teacher,
     courses,
     rating: {
-      count: ratingStats?.count ?? 0,
-      average: ratingStats?.average ?? 0,
+      count: (teacher.rating_count as number) ?? 0,
+      average: (teacher.avg_score as number) ?? 0,
     },
     comments,
   })
