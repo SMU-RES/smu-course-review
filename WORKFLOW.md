@@ -203,9 +203,12 @@ DataService 接口
 | `src/frontend/services/api-service.ts` | 动态站实现（原有 fetch 抽取） |
 | `src/frontend/services/static-service.ts` | 静态站实现（sql.js WASM 查询） |
 
-### 3.7.3 静态模式 UI
+### 3.7.3 站点切换提示
 
-- `StaticBanner` 组件：顶部提示「只读镜像站，评论/评分请访问正式版」
+- 静态站标题栏显示「海大选课通（静态）」
+- 静态站主页显示「最后更新时间」（Vite 编译时注入 `__BUILD_TIME__`）
+- 静态站主页底部提示：「当前站点是静态站点，只能查阅，无法评论。如需评论可访问动态站点。」
+- 动态站主页底部提示：「当前站点为动态站点，如只是查询数据而非评价，请访问静态站点以获得更好的体验。」
 - 评分表单、评论表单、回复按钮：`v-if="!staticMode"` 隐藏
 - 空评论提示改为「暂无评价」（不显示「来做第一个」）
 
@@ -216,7 +219,11 @@ DataService 接口
 | `npm run build` | 构建动态站（默认） |
 | `npm run build:static` | 构建静态站（`--mode static`） |
 
-- `.env.static` — `VITE_STATIC_MODE=true` + 动态站链接
+- 动态站：`https://smu-course-review.pages.dev`
+- 静态站：`https://smu-course-review-static.pages.dev`
+- `.env.static` — `VITE_STATIC_MODE=true` + 动态站链接 + 静态站链接
+- `.env.production` — 动态站构建用，含静态站链接
+- `__BUILD_TIME__` — Vite `define` 注入编译时间，静态站主页显示
 - `tools/export_static_db.sh` — 从远程 D1 导出 → 脱敏（删 users 表、清 ip_hash/user_id） → `public/data/db.sqlite`
 - `.github/workflows/static-deploy.yml` — 每天自动：导出 D1 → 构建静态站 → 部署到 `smu-course-review-static.pages.dev`
 

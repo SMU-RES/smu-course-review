@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [vue()],
   root: '.',
   publicDir: 'public',
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

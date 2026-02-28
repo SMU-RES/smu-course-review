@@ -8,6 +8,18 @@ const staticMode = isStaticMode()
 const searchQuery = ref('')
 const searchMode = ref<'course' | 'teacher'>('course')
 
+const dynamicSiteUrl = import.meta.env.VITE_DYNAMIC_SITE_URL || '#'
+const staticSiteUrl = import.meta.env.VITE_STATIC_SITE_URL || '#'
+
+const buildTime = computed(() => {
+  try {
+    const d = new Date(__BUILD_TIME__)
+    return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
+  } catch {
+    return __BUILD_TIME__
+  }
+})
+
 const placeholderText = computed(() => {
   return searchMode.value === 'teacher' ? '输入教师姓名...' : '输入课程名称...'
 })
@@ -29,6 +41,7 @@ function doSearch() {
       <div class="hero-icon">&#x1F393;</div>
       <h2 class="hero-title">海大选课通</h2>
       <p class="hero-subtitle">上海海事大学课程评价与信息共享平台</p>
+      <p v-if="staticMode" class="update-time">最后更新时间：{{ buildTime }}</p>
 
       <div class="search-mode" v-if="!staticMode">
         <button
@@ -69,6 +82,18 @@ function doSearch() {
           <span class="chip-icon">&#x1F9D1;&#x200D;&#x1F3EB;</span>
           全部教师
         </RouterLink>
+      </div>
+
+      <div class="site-notice">
+        <p v-if="staticMode">
+          当前站点是为了减少资源消耗而创建的静态站点，只能查阅，无法评论。如需评论可访问
+          <a :href="dynamicSiteUrl" class="notice-link">动态站点</a>。
+        </p>
+        <p v-else>
+          当前站点为动态站点，如只是查询数据而非评价，请访问
+          <a :href="staticSiteUrl" class="notice-link">静态站点</a>
+          以获得更好的体验。
+        </p>
       </div>
     </div>
   </div>
@@ -236,5 +261,34 @@ function doSearch() {
 
 .chip-icon {
   font-size: 16px;
+}
+
+.update-time {
+  font-size: 13px;
+  color: #79747e;
+  margin-bottom: 24px;
+  letter-spacing: 0.25px;
+}
+
+.site-notice {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.site-notice p {
+  font-size: 13px;
+  color: #79747e;
+  line-height: 1.6;
+  letter-spacing: 0.25px;
+}
+
+.notice-link {
+  color: #1a56db;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.notice-link:hover {
+  text-decoration: underline;
 }
 </style>

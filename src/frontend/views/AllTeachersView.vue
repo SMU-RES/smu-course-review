@@ -24,8 +24,8 @@ async function fetchTeachers() {
     })
     teachers.value = data.teachers
     total.value = data.total
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[AllTeachersView] fetchTeachers error:', e)
   } finally {
     loading.value = false
   }

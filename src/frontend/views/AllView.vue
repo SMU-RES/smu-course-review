@@ -26,8 +26,8 @@ async function fetchCourses() {
     })
     courses.value = data.courses
     total.value = data.total
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[AllView] fetchCourses error:', e)
   } finally {
     loading.value = false
   }

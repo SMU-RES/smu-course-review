@@ -25,6 +25,8 @@
 | D1 database_id | 58a90fef-00f8-4a84-b382-d38b343cd53d |
 | D1 区域 | APAC |
 | 认证方式 | 环境变量 `CLOUDFLARE_API_TOKEN`（存于 `.env`，已 gitignore） |
+| 动态站 URL | https://smu-course-review.pages.dev |
+| 静态站 URL | https://smu-course-review-static.pages.dev |
 
 ## 技术架构
 
@@ -50,11 +52,12 @@
 ### 架构图
 
 ```
-读取(高频) → Cloudflare Pages CDN → 静态 JSON 文件 (无限流量, 不耗 Worker 额度)
-                                          ↑ Cron 每10分钟生成
-写入(低频) → Cloudflare Workers → D1 SQLite
-                                          ↓ 定时备份
-                                   GitHub 归档
+动态站 (smu-course-review.pages.dev)
+  读取 + 写入 → Cloudflare Workers → D1 SQLite
+                                        ↓ 每日导出脱敏
+静态站 (smu-course-review-static.pages.dev)
+  只读查询 → sql.js (SQLite WASM) → 本地 db.sqlite (客户端)
+  GitHub Actions 每日自动构建部署
 ```
 
 ## 数据库设计 (D1 SQLite) — 6 张表

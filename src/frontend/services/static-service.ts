@@ -21,9 +21,11 @@ export class StaticService implements DataService {
   async init(): Promise<void> {
     if (this.db) return
 
-    const SQL = await initSqlJs({
-      locateFile: (file: string) => `/lib/${file}`,
-    })
+    // 手动 fetch WASM 二进制，通过 wasmBinary 传入，绕过 MIME 类型检查
+    const wasmResponse = await fetch('/lib/sql-wasm.wasm')
+    const wasmBinary = await wasmResponse.arrayBuffer()
+
+    const SQL = await initSqlJs({ wasmBinary })
 
     const response = await fetch('/data/db.sqlite')
     const buffer = await response.arrayBuffer()

@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.static
+!.env.production
 .dev.vars
 
 # Dependencies
