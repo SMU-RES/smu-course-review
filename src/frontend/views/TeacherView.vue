@@ -226,6 +226,44 @@ onMounted(fetchTeacher)
         </div>
       </div>
 
+      <!-- 授课列表 -->
+      <div class="md-card elevation-1">
+        <h3 class="section-title">授课列表 ({{ courses.length }})</h3>
+
+        <div v-if="courses.length === 0" class="empty-state">
+          <p>暂无课程信息</p>
+        </div>
+
+        <div v-else class="course-list">
+          <div
+            v-for="course in courses"
+            :key="course.id"
+            class="course-card"
+            @click="goToCourse(course.id)"
+          >
+            <div class="course-card-header">
+              <h3 class="course-card-title">{{ course.name }}</h3>
+              <div v-if="course.avg_rating" class="course-card-rating">
+                <span class="star-icon">&#9733;</span>
+                <span class="score-text">{{ course.avg_rating }}</span>
+              </div>
+            </div>
+            <div class="card-meta">
+              <span class="meta-chip">{{ course.department_name }}</span>
+              <span v-if="course.credits" class="meta-chip">{{ course.credits }}学分</span>
+              <span v-if="course.category" class="meta-chip category">{{ course.category }}</span>
+            </div>
+            <div class="card-footer">
+              <span class="course-code">{{ course.course_code }}</span>
+              <div class="card-stats">
+                <span v-if="course.comment_count > 0" class="stat">&#x1F4AC; {{ course.comment_count }}</span>
+                <span v-if="course.rating_count > 0" class="stat">&#x2B50; {{ course.rating_count }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 教师评分区域 -->
       <div class="md-card elevation-1">
         <h3 class="section-title">教师评分</h3>
@@ -344,44 +382,6 @@ onMounted(fetchTeacher)
           <div v-if="comments.length === 0" class="empty-comments">
             <div class="empty-icon">&#x1F4AC;</div>
             <p>暂无评价，来做第一个评价的人吧</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 授课列表 -->
-      <div class="md-card elevation-1">
-        <h3 class="section-title">授课列表 ({{ courses.length }})</h3>
-
-        <div v-if="courses.length === 0" class="empty-state">
-          <p>暂无课程信息</p>
-        </div>
-
-        <div v-else class="course-list">
-          <div
-            v-for="course in courses"
-            :key="course.id"
-            class="course-card"
-            @click="goToCourse(course.id)"
-          >
-            <div class="course-card-header">
-              <h3 class="course-card-title">{{ course.name }}</h3>
-              <div v-if="course.avg_rating" class="course-card-rating">
-                <span class="star-icon">&#9733;</span>
-                <span class="score-text">{{ course.avg_rating }}</span>
-              </div>
-            </div>
-            <div class="card-meta">
-              <span class="meta-chip">{{ course.department_name }}</span>
-              <span v-if="course.credits" class="meta-chip">{{ course.credits }}学分</span>
-              <span v-if="course.category" class="meta-chip category">{{ course.category }}</span>
-            </div>
-            <div class="card-footer">
-              <span class="course-code">{{ course.course_code }}</span>
-              <div class="card-stats">
-                <span v-if="course.comment_count > 0" class="stat">&#x1F4AC; {{ course.comment_count }}</span>
-                <span v-if="course.rating_count > 0" class="stat">&#x2B50; {{ course.rating_count }}</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

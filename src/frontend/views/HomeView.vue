@@ -42,6 +42,10 @@ function doSearch() {
           <span class="chip-icon">&#x1F4DA;</span>
           全部课程
         </RouterLink>
+        <RouterLink to="/teachers" class="chip">
+          <span class="chip-icon">&#x1F9D1;&#x200D;&#x1F3EB;</span>
+          全部教师
+        </RouterLink>
       </div>
     </div>
   </div>

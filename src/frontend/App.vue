@@ -11,7 +11,7 @@ import { RouterView, RouterLink } from 'vue-router'
         </RouterLink>
         <nav class="nav-tabs">
           <RouterLink to="/" exact-active-class="active" class="nav-tab">首页</RouterLink>
-          <RouterLink to="/hot" active-class="active" class="nav-tab">热门</RouterLink>
+          <RouterLink to="/hot" active-class="active" class="nav-tab">热门课程</RouterLink>
           <RouterLink to="/all" active-class="active" class="nav-tab">全部课程</RouterLink>
           <RouterLink to="/teachers" active-class="active" class="nav-tab">全部教师</RouterLink>
         </nav>
