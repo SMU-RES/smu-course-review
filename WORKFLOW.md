@@ -23,24 +23,24 @@
 | 0.2 Cloudflare 账号 | ✅ | 新账号注册，API Token 创建 |
 | 0.3 Wrangler CLI 登录 | ✅ | 通过 `CLOUDFLARE_API_TOKEN` 环境变量认证 |
 | 0.4 D1 数据库创建 | ✅ | `ouc-course-review` 已创建，APAC 区域 |
-| 0.5 本地 Git 仓库 | 🔲 | 初始化 git，GPL-3.0，.gitignore |
-| 0.6 项目骨架 | 🔲 | wrangler.toml, package.json, tsconfig 等 |
+| 0.5 本地 Git 仓库 | ✅ | 初始化 git，GPL-3.0，.gitignore |
+| 0.6 项目骨架 | ✅ | wrangler.toml, package.json, tsconfig 等 |
 
 ---
 
 ## Phase 1 — 数据准备 ✅
 
 ### 1.1 数据清洗
-- 输入: `exportResult.xls`（上海海事大学教务系统导出，2675 条课程数据）
+- 输入: `data/2025-2026-2.xls`（上海海事大学教务系统导出，2675 条课程数据）
 - Python 脚本清洗:
   - 提取院系列表（41 个）→ departments
   - 提取教师列表（去重，含工号）→ teachers
   - 标准化课程字段 → courses
-- 输出: `data/courses.json`
+- 输出: `db/schema.sql` + `db/seed.sql`
 
 ### 1.2 数据库 Schema
 
-5 张表，无时间地点表：
+6 张表：
 
 ```
 departments (院系)
@@ -56,89 +56,91 @@ teachers (教师)
 courses (课程)
 ├── id          INTEGER PRIMARY KEY
 ├── course_code TEXT           -- 课程号，如 "FX110010"
-├── course_seq  TEXT           -- 课序号，如 "FX110010_001"
+├── course_seq  TEXT UNIQUE    -- 课序号，如 "FX110010_001"
 ├── name        TEXT NOT NULL
-├── category    TEXT           -- 课程种类: 一般课程/实习实践/体育/实验/网络通识
+├── category    TEXT           -- 课程种类
 ├── department_id INTEGER → departments.id
 ├── teacher_id  INTEGER → teachers.id
-├── class_name  TEXT           -- 行政班
-├── enrolled    INTEGER        -- 实际人数
-├── capacity    INTEGER        -- 人数上限
 ├── credits     REAL           -- 学分
 └── hours       INTEGER        -- 学时
 
-comments (评论 — 可以一直评论，不限次数)
+users (用户 — 校园邮箱认证)
 ├── id          INTEGER PRIMARY KEY
-├── course_id   INTEGER → courses.id
-├── content     TEXT NOT NULL
-├── ip_hash     TEXT           -- IP 哈希，用于基本防刷
-└── created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+├── email       TEXT NOT NULL UNIQUE
+└── created_at  DATETIME
 
-ratings (评分 — 每人每课只能评一次)
+comments (评论 — 不限次数，支持一级子评论)
 ├── id          INTEGER PRIMARY KEY
 ├── course_id   INTEGER → courses.id
-├── score       INTEGER CHECK(score BETWEEN 1 AND 5)
-├── fingerprint TEXT           -- 浏览器指纹，用于唯一性约束
-├── created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-└── UNIQUE(course_id, fingerprint)
+├── parent_id   INTEGER → comments.id  -- 子评论指向父评论
+├── user_id     INTEGER → users.id (nullable)
+├── nickname    TEXT DEFAULT '匿名用户'
+├── content     TEXT NOT NULL (限100字)
+└── created_at  DATETIME
+
+ratings (评分 — 每人每课仅一次)
+├── id          INTEGER PRIMARY KEY
+├── course_id   INTEGER → courses.id
+├── user_id     INTEGER → users.id (nullable)
+├── score       INTEGER CHECK(1~5)
+├── ip_hash     TEXT           -- IP 哈希去重
+└── created_at  DATETIME
 ```
 
 ### 1.3 数据导入
-- 编写导入脚本 `scripts/import.py`
-- 从 `courses.json` 生成 `schema.sql` + `seed.sql`
-- 执行: `npx wrangler d1 execute ouc-course-review --file=schema.sql`
-- 执行: `npx wrangler d1 execute ouc-course-review --file=seed.sql`
-- 本地开发用: `--local` 参数写入本地 D1 模拟库
+- 导入脚本 `tools/import_courses.py`
+- 从 XLS 生成 `db/schema.sql` + `db/seed.sql`
+- 本地开发: 直接写入 `.wrangler/state/v3/d1/` 下的 sqlite 文件
 
 ---
 
-## Phase 2 — 后端 API (Cloudflare Workers) ✅
+## Phase 2 — 后端 API (Cloudflare Pages Functions) ✅
 
 ### 2.1 读取 API
 
 | 端点 | 说明 | 数据源 |
 |------|------|--------|
-| `GET /data/courses.json` | 全部课程索引 | 静态 JSON (CDN) |
-| `GET /data/dept/{id}.json` | 按院系查课程 | 静态 JSON (CDN) |
-| `GET /api/courses/:id` | 课程详情 + 评分 + 评论 | Worker → D1 |
+| `GET /api/courses` | 课程列表（搜索、分页、排序） | Worker → D1 |
+| `GET /api/courses/:id` | 课程详情 + 评分 + 评论树 | Worker → D1 |
+| `GET /api/departments` | 院系列表 | Worker → D1 |
 
 ### 2.2 写入 API
 
 | 端点 | 说明 | 限制 |
 |------|------|------|
-| `POST /api/comments` | 提交评论 | IP 防刷，内容过滤 |
-| `POST /api/ratings` | 提交评分 | fingerprint 唯一约束，1-5 分 |
+| `POST /api/comments` | 提交评论/子评论 | 100字限制，子评论不可再被评论 |
+| `POST /api/ratings` | 提交评分 | IP hash 去重，1-5 分 |
 
 ### 2.3 定时任务
 
-- Cron Trigger: 每 10 分钟从 D1 导出数据为静态 JSON
-- 导出内容: 课程列表 + 平均评分 + 评论数
-- 输出到 `/data/` 目录供 CDN 分发
+- Cron Trigger: 每 10 分钟从 D1 导出数据为静态 JSON（后续实现）
 
 ---
 
-## Phase 3 — 前端 (Vue 3 + Cloudflare Pages) ✅
+## Phase 3 — 前端 (Vue 3 + Material Design) ✅
 
 ### 3.1 页面
 
-| 页面 | 路由 | 数据来源 |
-|------|------|----------|
-| 首页 | `/` | 静态 JSON: 搜索、院系筛选、热门课程 |
-| 课程详情 | `/course/:id` | Worker API: 评分统计 + 评论列表 |
-| 提交评价 | `/course/:id/review` | Worker API: POST 评论 + 评分 |
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| 首页 | `/` | 搜索框 + 快捷入口 |
+| 热门课程 | `/hot` | 按评论数排序的热门课程 |
+| 全部课程 | `/all` | 搜索 + 分页课程列表 |
+| 课程详情 | `/course/:id` | 课程信息 + 评分 + 评论树 |
 
-### 3.2 设计原则
-- 移动端优先（微信内置浏览器访问为主）
-- 无需登录注册
-- 首屏从静态 JSON 加载，极快
-- 评论/评分通过 Worker API 提交
+### 3.2 设计
+- Material Design 风格
+- MD 卡片、elevation、圆角按钮、pill 形搜索框
+- 移动端优先
+- 评论支持一级回复（子评论不可再被评论）
+- 匿名用户显示"匿名用户"
 
 ---
 
 ## Phase 4 — 部署 & 运维
 
 ### 4.1 部署流程
-1. 推送到 GitHub `smu-res/ouc-course-review` 的 `main` 分支
+1. 推送到 GitHub `smu-res/smu-course-review` 的 `main` 分支
 2. Cloudflare Pages 自动拉取构建
 3. 前端 + Worker API 部署到全球边缘节点
 
@@ -163,18 +165,20 @@ ratings (评分 — 每人每课只能评一次)
 | 0.4 | 创建 D1 数据库 | 0.3 | ✅ |
 | 0.5 | 初始化本地 Git 仓库 + GPL-3.0 | - | ✅ |
 | 0.6 | 项目骨架 (wrangler.toml, package.json) | 0.5 | ✅ |
-| 1.1 | XLS → courses.json 数据清洗 | 0.5 | ✅ |
+| 1.1 | XLS → schema.sql + seed.sql | 0.5 | ✅ |
 | 1.2 | 编写 schema.sql 建表 | - | ✅ |
 | 1.3 | 编写 seed.sql + 导入 D1 | 1.1 + 1.2 | ✅ |
 | 1.4 | 本地 D1 验证数据完整性 | 1.3 | ✅ |
-| 2.1 | Worker API: 课程查询 | 1.3 | ✅ |
-| 2.2 | Worker API: 评论提交 | 1.2 | ✅ |
+| 2.1 | Worker API: 课程查询 + 列表 | 1.3 | ✅ |
+| 2.2 | Worker API: 评论提交（含子评论） | 1.2 | ✅ |
 | 2.3 | Worker API: 评分提交 | 1.2 | ✅ |
 | 2.4 | Cron: 导出静态 JSON | 2.1 | ⏭️ 后续 |
-| 2.5 | 本地 `wrangler dev` 联调验证 | 2.1~2.4 | ✅ |
-| 3.1 | 前端: 首页 + 搜索 | 2.5 | ✅ |
-| 3.2 | 前端: 课程详情 + 评价列表 | 2.5 | ✅ |
-| 3.3 | 前端: 提交评论 + 评分 | 2.5 | ✅ |
-| 4.1 | 推送到 GitHub 组织仓库 | 3.x | 🔲 |
+| 2.5 | 本地 `wrangler pages dev` 联调验证 | 2.1~2.3 | ✅ |
+| 3.1 | 前端: 首页 (搜索) | 2.5 | ✅ |
+| 3.2 | 前端: 热门课程页 | 2.5 | ✅ |
+| 3.3 | 前端: 全部课程页 | 2.5 | ✅ |
+| 3.4 | 前端: 课程详情 + 评论树 + 评分 | 2.5 | ✅ |
+| 3.5 | 前端: Material Design 风格 | 3.1~3.4 | ✅ |
+| 4.1 | 推送到 GitHub 组织仓库 | 3.x | ✅ |
 | 4.2 | Cloudflare Pages 绑定 GitHub 部署 | 4.1 | 🔲 |
 | 4.3 | 线上验证 | 4.2 | 🔲 |

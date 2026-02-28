@@ -4,24 +4,23 @@ import { RouterView, RouterLink } from 'vue-router'
 
 <template>
   <div class="app">
-    <header class="header">
-      <div class="container">
-        <RouterLink to="/" class="logo">
+    <header class="app-bar elevation-3">
+      <div class="app-bar-inner">
+        <RouterLink to="/" class="brand">
           <h1>海大选课通</h1>
-          <span class="subtitle">上海海事大学课程评价平台</span>
         </RouterLink>
+        <nav class="nav-tabs">
+          <RouterLink to="/" exact-active-class="active" class="nav-tab">首页</RouterLink>
+          <RouterLink to="/hot" active-class="active" class="nav-tab">热门</RouterLink>
+          <RouterLink to="/all" active-class="active" class="nav-tab">全部课程</RouterLink>
+        </nav>
       </div>
     </header>
-    <main class="main">
+    <main class="main-content">
       <div class="container">
         <RouterView />
       </div>
     </main>
-    <footer class="footer">
-      <div class="container">
-        <p>海大选课通 &copy; 2025 &mdash; 服务上海海事大学学生</p>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -32,52 +31,71 @@ import { RouterView, RouterLink } from 'vue-router'
   flex-direction: column;
 }
 
-.header {
+.app-bar {
   background: #1a56db;
   color: #fff;
-  padding: 12px 0;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.logo {
+.app-bar-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+}
+
+.brand {
   text-decoration: none;
   color: #fff;
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
 }
 
-.logo h1 {
+.brand h1 {
   margin: 0;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
-.subtitle {
-  font-size: 13px;
-  opacity: 0.8;
+.nav-tabs {
+  display: flex;
+  gap: 0;
 }
 
-.main {
+.nav-tab {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.25px;
+}
+
+.nav-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nav-tab.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.main-content {
   flex: 1;
-  padding: 20px 0;
-  background: #f5f7fa;
+  padding: 24px 0;
+  background: #f7f2fa;
 }
 
 .container {
   max-width: 960px;
   margin: 0 auto;
   padding: 0 16px;
-}
-
-.footer {
-  background: #f0f0f0;
-  padding: 16px 0;
-  text-align: center;
-  font-size: 13px;
-  color: #999;
 }
 </style>

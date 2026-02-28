@@ -62,9 +62,6 @@ CREATE TABLE IF NOT EXISTS courses (
     category      TEXT,
     department_id INTEGER,
     teacher_id    INTEGER,
-    class_name    TEXT,
-    enrolled      INTEGER DEFAULT 0,
-    capacity      INTEGER DEFAULT 0,
     credits       REAL    DEFAULT 0,
     hours         INTEGER DEFAULT 0,
     FOREIGN KEY (department_id) REFERENCES departments(id),
@@ -82,17 +79,21 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 评论（不限次数）
+-- 评论（不限次数，支持一级子评论）
 CREATE TABLE IF NOT EXISTS comments (
     id         INTEGER  PRIMARY KEY AUTOINCREMENT,
     course_id  INTEGER  NOT NULL,
+    parent_id  INTEGER,
     user_id    INTEGER,
+    nickname   TEXT     DEFAULT '匿名用户',
     content    TEXT     NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (course_id) REFERENCES courses(id),
+    FOREIGN KEY (parent_id) REFERENCES comments(id),
     FOREIGN KEY (user_id)   REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_comments_course ON comments(course_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
 
 -- 评分（每人每课仅一次）
 CREATE TABLE IF NOT EXISTS ratings (
@@ -233,9 +234,6 @@ def process_data(rows: list) -> dict:
                 "category": str(row[COL_CATEGORY]).strip(),
                 "dept_id": dept_id,
                 "teacher_id": teacher_id,
-                "class_name": str(row[COL_CLASS_NAME]).strip(),
-                "enrolled": safe_int(row[COL_ENROLLED]),
-                "capacity": safe_int(row[COL_CAPACITY]),
                 "credits": safe_float(row[COL_CREDITS]),
                 "hours": safe_int(row[COL_HOURS]),
             }
@@ -292,7 +290,7 @@ def generate_seed_sql(data: dict) -> str:
         lines.append(
             f"INSERT INTO courses "
             f"(id, course_code, course_seq, name, category, department_id, "
-            f"teacher_id, class_name, enrolled, capacity, credits, hours) VALUES ("
+            f"teacher_id, credits, hours) VALUES ("
             f"{i}, "
             f"'{escape_sql(c['course_code'])}', "
             f"'{escape_sql(c['course_seq'])}', "
@@ -300,9 +298,6 @@ def generate_seed_sql(data: dict) -> str:
             f"'{escape_sql(c['category'])}', "
             f"{dept_str}, "
             f"{teacher_str}, "
-            f"'{escape_sql(c['class_name'])}', "
-            f"{c['enrolled']}, "
-            f"{c['capacity']}, "
             f"{c['credits']}, "
             f"{c['hours']}"
             f");"
@@ -430,15 +425,14 @@ def main():
 
     # 5. 提示下一步
     db_name = "ouc-course-review"
-    # 相对于项目根目录的路径（tools 的上一级）
     project_root = script_dir / ".."
-    schema_rel = schema_path.relative_to(project_root.resolve())
     seed_rel = seed_path.relative_to(project_root.resolve())
-    print(f"\n下一步 — 导入到 D1 (在项目根目录执行):")
+    print(f"\n下一步 -- 导入到 D1 (在项目根目录执行):")
     if not args.seed_only:
+        schema_rel = schema_path.relative_to(project_root.resolve())
         print(f"  npx wrangler d1 execute {db_name} --file={schema_rel} --remote")
     print(f"  npx wrangler d1 execute {db_name} --file={seed_rel} --remote")
-    print(f"\n本地开发 — 加 --local 参数即可")
+    print(f"\n本地开发 -- 加 --local 参数即可")
 
 
 if __name__ == "__main__":

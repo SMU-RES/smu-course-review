@@ -11,17 +11,24 @@ interface CourseDetail {
   department_name: string
   teacher_name: string
   teacher_code: string
-  class_name: string
-  enrolled: number
-  capacity: number
   credits: number
   hours: number
 }
 
-interface Comment {
+interface Reply {
   id: number
+  parent_id: number
+  nickname: string
   content: string
   created_at: string
+}
+
+interface Comment {
+  id: number
+  nickname: string
+  content: string
+  created_at: string
+  replies: Reply[]
 }
 
 const route = useRoute()
@@ -42,6 +49,12 @@ const commentContent = ref('')
 const commentSubmitting = ref(false)
 const commentMessage = ref('')
 
+// 子评论
+const replyingTo = ref<number | null>(null)
+const replyContent = ref('')
+const replySubmitting = ref(false)
+const replyMessage = ref('')
+
 async function fetchCourse() {
   loading.value = true
   error.value = ''
@@ -51,11 +64,12 @@ async function fetchCourse() {
       error.value = '课程不存在'
       return
     }
-    const data: { course: CourseDetail; rating: typeof ratingInfo.value; comments: Comment[] } = await res.json()
+    const data: { course: CourseDetail; rating: typeof ratingInfo.value; comments: Comment[] } =
+      await res.json()
     course.value = data.course
     ratingInfo.value = data.rating
     comments.value = data.comments
-  } catch (e) {
+  } catch {
     error.value = '加载失败'
   } finally {
     loading.value = false
@@ -117,6 +131,46 @@ async function submitComment() {
   }
 }
 
+async function submitReply(parentId: number) {
+  if (!replyContent.value.trim() || replySubmitting.value) return
+  replySubmitting.value = true
+  replyMessage.value = ''
+  try {
+    const res = await fetch('/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        course_id: Number(route.params.id),
+        content: replyContent.value.trim(),
+        parent_id: parentId,
+      }),
+    })
+    const data: { success?: boolean; error?: string } = await res.json()
+    if (data.success) {
+      replyContent.value = ''
+      replyingTo.value = null
+      fetchCourse()
+    } else {
+      replyMessage.value = data.error || '回复失败'
+    }
+  } catch {
+    replyMessage.value = '网络错误'
+  } finally {
+    replySubmitting.value = false
+  }
+}
+
+function toggleReply(commentId: number) {
+  if (replyingTo.value === commentId) {
+    replyingTo.value = null
+    replyContent.value = ''
+  } else {
+    replyingTo.value = commentId
+    replyContent.value = ''
+    replyMessage.value = ''
+  }
+}
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -127,62 +181,59 @@ onMounted(fetchCourse)
 
 <template>
   <div class="course-view">
-    <RouterLink to="/" class="back">&larr; 返回课程列表</RouterLink>
+    <RouterLink to="/all" class="back-link">
+      &#x276E; 返回课程列表
+    </RouterLink>
 
-    <div v-if="loading" class="loading">加载中...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
+    <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
+      <span>加载中...</span>
+    </div>
+    <div v-else-if="error" class="error-state">{{ error }}</div>
 
     <template v-else-if="course">
       <!-- 课程信息卡片 -->
-      <div class="info-card">
-        <h2>{{ course.name }}</h2>
+      <div class="md-card elevation-2">
+        <div class="card-headline">
+          <h2>{{ course.name }}</h2>
+          <span v-if="course.category" class="category-chip">{{ course.category }}</span>
+        </div>
         <div class="info-grid">
           <div class="info-item">
-            <span class="label">教师</span>
-            <span>{{ course.teacher_name || '未知' }}</span>
+            <span class="info-label">教师</span>
+            <span class="info-value">{{ course.teacher_name || '未知' }}</span>
           </div>
           <div class="info-item">
-            <span class="label">院系</span>
-            <span>{{ course.department_name }}</span>
+            <span class="info-label">院系</span>
+            <span class="info-value">{{ course.department_name }}</span>
           </div>
           <div class="info-item">
-            <span class="label">课程号</span>
-            <span class="mono">{{ course.course_code }}</span>
+            <span class="info-label">课程号</span>
+            <span class="info-value mono">{{ course.course_code }}</span>
           </div>
           <div class="info-item">
-            <span class="label">学分</span>
-            <span>{{ course.credits }}</span>
+            <span class="info-label">学分</span>
+            <span class="info-value">{{ course.credits }}</span>
           </div>
           <div class="info-item">
-            <span class="label">学时</span>
-            <span>{{ course.hours }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">人数</span>
-            <span>{{ course.enrolled }} / {{ course.capacity }}</span>
-          </div>
-          <div v-if="course.category" class="info-item">
-            <span class="label">类型</span>
-            <span>{{ course.category }}</span>
-          </div>
-          <div v-if="course.class_name" class="info-item">
-            <span class="label">行政班</span>
-            <span>{{ course.class_name }}</span>
+            <span class="info-label">学时</span>
+            <span class="info-value">{{ course.hours }}</span>
           </div>
         </div>
       </div>
 
       <!-- 评分区域 -->
-      <div class="section-card">
-        <h3>课程评分</h3>
-        <div class="rating-summary">
+      <div class="md-card elevation-1">
+        <h3 class="section-title">课程评分</h3>
+        <div class="rating-display">
           <span class="big-score">{{ ratingInfo.average || '-' }}</span>
-          <span class="rating-label">
-            / 5 分 ({{ ratingInfo.count }} 人评价)
-          </span>
+          <div class="rating-detail">
+            <span class="rating-max">/ 5 分</span>
+            <span class="rating-count">{{ ratingInfo.count }} 人评价</span>
+          </div>
         </div>
         <div class="rating-input">
-          <span class="rate-label">我的评分：</span>
+          <span class="rate-label">我的评分</span>
           <div class="stars">
             <span
               v-for="star in 5"
@@ -192,54 +243,106 @@ onMounted(fetchCourse)
               @mouseenter="hoverScore = star"
               @mouseleave="hoverScore = 0"
               @click="userScore = star"
-            >
-              &#9733;
-            </span>
+            >&#9733;</span>
           </div>
           <button
-            class="btn btn-primary btn-sm"
+            class="md-btn md-btn-filled"
             :disabled="!userScore || ratingSubmitting"
             @click="submitRating"
           >
-            {{ ratingSubmitting ? '提交中...' : '提交评分' }}
+            {{ ratingSubmitting ? '提交中...' : '提交' }}
           </button>
         </div>
-        <div v-if="ratingMessage" class="msg">{{ ratingMessage }}</div>
+        <div v-if="ratingMessage" class="feedback-msg success">{{ ratingMessage }}</div>
       </div>
 
       <!-- 评论区域 -->
-      <div class="section-card">
-        <h3>课程评价 ({{ comments.length }})</h3>
+      <div class="md-card elevation-1">
+        <h3 class="section-title">课程评价 ({{ comments.length }})</h3>
 
         <!-- 评论表单 -->
         <div class="comment-form">
-          <textarea
-            v-model="commentContent"
-            placeholder="分享你的课程体验...（限500字）"
-            maxlength="500"
-            rows="3"
-          ></textarea>
-          <div class="comment-actions">
-            <span class="char-count">{{ commentContent.length }} / 500</span>
+          <div class="form-field">
+            <textarea
+              v-model="commentContent"
+              placeholder="分享你的课程体验...（限100字）"
+              maxlength="100"
+              rows="3"
+            ></textarea>
+            <span class="char-counter">{{ commentContent.length }} / 100</span>
+          </div>
+          <div class="form-actions">
             <button
-              class="btn btn-primary"
+              class="md-btn md-btn-filled"
               :disabled="!commentContent.trim() || commentSubmitting"
               @click="submitComment"
             >
-              {{ commentSubmitting ? '提交中...' : '提交评论' }}
+              {{ commentSubmitting ? '提交中...' : '发表评论' }}
             </button>
           </div>
-          <div v-if="commentMessage" class="msg">{{ commentMessage }}</div>
+          <div v-if="commentMessage" class="feedback-msg success">{{ commentMessage }}</div>
         </div>
 
         <!-- 评论列表 -->
         <div class="comment-list">
-          <div v-for="comment in comments" :key="comment.id" class="comment-item">
-            <div class="comment-content">{{ comment.content }}</div>
-            <div class="comment-time">{{ formatDate(comment.created_at) }}</div>
+          <div v-for="comment in comments" :key="comment.id" class="comment-thread">
+            <!-- 主评论 -->
+            <div class="comment-item">
+              <div class="comment-avatar">{{ comment.nickname.charAt(0) }}</div>
+              <div class="comment-body">
+                <div class="comment-header">
+                  <span class="comment-nickname">{{ comment.nickname }}</span>
+                  <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
+                </div>
+                <p class="comment-text">{{ comment.content }}</p>
+                <button class="reply-toggle" @click="toggleReply(comment.id)">
+                  {{ replyingTo === comment.id ? '取消回复' : '回复' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- 子评论列表 -->
+            <div v-if="comment.replies.length > 0" class="replies">
+              <div v-for="reply in comment.replies" :key="reply.id" class="comment-item reply">
+                <div class="comment-avatar small">{{ reply.nickname.charAt(0) }}</div>
+                <div class="comment-body">
+                  <div class="comment-header">
+                    <span class="comment-nickname">{{ reply.nickname }}</span>
+                    <span class="comment-time">{{ formatDate(reply.created_at) }}</span>
+                  </div>
+                  <p class="comment-text">{{ reply.content }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 回复表单 -->
+            <div v-if="replyingTo === comment.id" class="reply-form">
+              <div class="form-field compact">
+                <textarea
+                  v-model="replyContent"
+                  placeholder="写下你的回复...（限100字）"
+                  maxlength="100"
+                  rows="2"
+                ></textarea>
+                <span class="char-counter">{{ replyContent.length }} / 100</span>
+              </div>
+              <div class="form-actions">
+                <button class="md-btn md-btn-text" @click="replyingTo = null">取消</button>
+                <button
+                  class="md-btn md-btn-tonal"
+                  :disabled="!replyContent.trim() || replySubmitting"
+                  @click="submitReply(comment.id)"
+                >
+                  {{ replySubmitting ? '提交中...' : '回复' }}
+                </button>
+              </div>
+              <div v-if="replyMessage" class="feedback-msg error">{{ replyMessage }}</div>
+            </div>
           </div>
-          <div v-if="comments.length === 0" class="empty">
-            暂无评价，来做第一个评价的人吧
+
+          <div v-if="comments.length === 0" class="empty-comments">
+            <div class="empty-icon">&#x1F4AC;</div>
+            <p>暂无评价，来做第一个评价的人吧</p>
           </div>
         </div>
       </div>
@@ -248,97 +351,173 @@ onMounted(fetchCourse)
 </template>
 
 <style scoped>
-.back {
-  display: inline-block;
+.course-view {
+  padding-bottom: 24px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-bottom: 16px;
   font-size: 14px;
-  color: #666;
-}
-
-.back:hover {
+  font-weight: 500;
   color: #1a56db;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 20px;
+  transition: background 0.2s;
+  letter-spacing: 0.25px;
 }
 
-.loading,
-.error {
+.back-link:hover {
+  background: rgba(26, 86, 219, 0.08);
+}
+
+/* 加载/错误 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 0;
+  color: #49454f;
+  font-size: 14px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e8def8;
+  border-top-color: #1a56db;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-state {
   text-align: center;
-  padding: 40px;
-  color: #999;
+  padding: 60px 0;
+  color: #b3261e;
+  font-size: 14px;
 }
 
-.error {
-  color: #ef4444;
-}
-
-.info-card,
-.section-card {
+/* MD 卡片 */
+.md-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 16px;
-  border: 1px solid #eee;
 }
 
-.info-card h2 {
-  font-size: 20px;
+.card-headline {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 16px;
-  color: #333;
 }
 
-.section-card h3 {
+.card-headline h2 {
+  font-size: 22px;
+  font-weight: 400;
+  color: #1d1b20;
+  letter-spacing: 0.25px;
+}
+
+.category-chip {
+  flex-shrink: 0;
+  font-size: 12px;
+  background: #e8def8;
+  color: #6750a4;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-weight: 500;
+  letter-spacing: 0.25px;
+}
+
+.section-title {
   font-size: 16px;
-  margin-bottom: 14px;
-  color: #333;
+  font-weight: 500;
+  color: #1d1b20;
+  margin-bottom: 16px;
+  letter-spacing: 0.15px;
 }
 
+/* 信息网格 */
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
 }
 
 .info-item {
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.info-item .label {
-  color: #999;
-  margin-right: 8px;
+.info-label {
+  font-size: 12px;
+  color: #79747e;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #1d1b20;
 }
 
 .mono {
   font-family: monospace;
+  letter-spacing: 0.5px;
 }
 
 /* 评分 */
-.rating-summary {
+.rating-display {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .big-score {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 300;
   color: #f59e0b;
+  line-height: 1;
 }
 
-.rating-label {
+.rating-detail {
+  display: flex;
+  flex-direction: column;
+}
+
+.rating-max {
   font-size: 14px;
-  color: #999;
+  color: #79747e;
+}
+
+.rating-count {
+  font-size: 12px;
+  color: #aeaaae;
 }
 
 .rating-input {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .rate-label {
   font-size: 14px;
-  color: #666;
+  color: #49454f;
+  font-weight: 500;
 }
 
 .stars {
@@ -347,114 +526,254 @@ onMounted(fetchCourse)
 }
 
 .star {
-  font-size: 24px;
+  font-size: 28px;
   cursor: pointer;
-  color: #ddd;
-  transition: color 0.15s;
+  color: #d9d3df;
+  transition: color 0.15s, transform 0.15s;
   user-select: none;
+}
+
+.star:hover {
+  transform: scale(1.1);
 }
 
 .star.filled {
   color: #f59e0b;
 }
 
-/* 按钮 */
-.btn {
-  padding: 8px 16px;
+/* MD 按钮 */
+.md-btn {
+  padding: 8px 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: 20px;
   font-size: 14px;
-  transition: opacity 0.2s;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.btn:disabled {
-  opacity: 0.5;
+.md-btn:disabled {
+  opacity: 0.38;
   cursor: not-allowed;
 }
 
-.btn-primary {
+.md-btn-filled {
   background: #1a56db;
   color: #fff;
 }
 
-.btn-primary:hover:not(:disabled) {
+.md-btn-filled:hover:not(:disabled) {
   background: #1447b5;
+  box-shadow: 0 1px 3px rgba(26, 86, 219, 0.3);
 }
 
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
+.md-btn-tonal {
+  background: #e8def8;
+  color: #1d1b20;
 }
 
-.msg {
+.md-btn-tonal:hover:not(:disabled) {
+  background: #d0bcff;
+}
+
+.md-btn-text {
+  background: transparent;
+  color: #1a56db;
+}
+
+.md-btn-text:hover {
+  background: rgba(26, 86, 219, 0.08);
+}
+
+.feedback-msg {
   margin-top: 8px;
   font-size: 13px;
-  color: #10b981;
+  letter-spacing: 0.25px;
 }
 
-/* 评论 */
+.feedback-msg.success {
+  color: #1b873a;
+}
+
+.feedback-msg.error {
+  color: #b3261e;
+}
+
+/* 评论表单 */
 .comment-form {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e7e0ec;
 }
 
-.comment-form textarea {
+.form-field {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.form-field textarea {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 12px 16px;
+  border: 1px solid #c4c0c9;
+  border-radius: 12px;
   resize: vertical;
   outline: none;
   font-size: 14px;
   line-height: 1.5;
+  color: #1d1b20;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.comment-form textarea:focus {
+.form-field textarea:focus {
   border-color: #1a56db;
-  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+  box-shadow: 0 0 0 1px #1a56db;
 }
 
-.comment-actions {
+.form-field textarea::placeholder {
+  color: #79747e;
+}
+
+.form-field.compact textarea {
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.char-counter {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 11px;
+  color: #aeaaae;
+}
+
+.form-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 8px;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
-.char-count {
-  font-size: 12px;
-  color: #999;
-}
-
+/* 评论列表 */
 .comment-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+}
+
+.comment-thread {
+  padding: 16px 0;
+  border-bottom: 1px solid #f3edf7;
+}
+
+.comment-thread:last-child {
+  border-bottom: none;
 }
 
 .comment-item {
-  padding: 12px;
-  background: #fafafa;
-  border-radius: 6px;
+  display: flex;
+  gap: 12px;
 }
 
-.comment-content {
+.comment-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e8def8;
+  color: #6750a4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.comment-avatar.small {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.comment-nickname {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1d1b20;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #aeaaae;
+}
+
+.comment-text {
   font-size: 14px;
   line-height: 1.6;
-  color: #333;
+  color: #49454f;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.comment-time {
-  margin-top: 6px;
+.reply-toggle {
+  background: none;
+  border: none;
+  color: #1a56db;
   font-size: 12px;
-  color: #aaa;
+  font-weight: 500;
+  padding: 4px 0;
+  cursor: pointer;
+  letter-spacing: 0.25px;
+  margin-top: 4px;
 }
 
-.empty {
+.reply-toggle:hover {
+  text-decoration: underline;
+}
+
+/* 子评论 */
+.replies {
+  margin-left: 48px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 16px;
+  border-left: 2px solid #e8def8;
+}
+
+.reply-form {
+  margin-left: 48px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #f9f6fc;
+  border-radius: 12px;
+}
+
+/* 空评论 */
+.empty-comments {
   text-align: center;
-  padding: 30px;
-  color: #999;
+  padding: 40px 0;
+  color: #79747e;
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.empty-comments p {
   font-size: 14px;
 }
 </style>

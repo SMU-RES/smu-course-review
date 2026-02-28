@@ -28,9 +28,6 @@ CREATE TABLE IF NOT EXISTS courses (
     category      TEXT,
     department_id INTEGER,
     teacher_id    INTEGER,
-    class_name    TEXT,
-    enrolled      INTEGER DEFAULT 0,
-    capacity      INTEGER DEFAULT 0,
     credits       REAL    DEFAULT 0,
     hours         INTEGER DEFAULT 0,
     FOREIGN KEY (department_id) REFERENCES departments(id),
@@ -48,17 +45,21 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 评论（不限次数）
+-- 评论（不限次数，支持一级子评论）
 CREATE TABLE IF NOT EXISTS comments (
     id         INTEGER  PRIMARY KEY AUTOINCREMENT,
     course_id  INTEGER  NOT NULL,
+    parent_id  INTEGER,
     user_id    INTEGER,
+    nickname   TEXT     DEFAULT '匿名用户',
     content    TEXT     NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (course_id) REFERENCES courses(id),
+    FOREIGN KEY (parent_id) REFERENCES comments(id),
     FOREIGN KEY (user_id)   REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_comments_course ON comments(course_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
 
 -- 评分（每人每课仅一次）
 CREATE TABLE IF NOT EXISTS ratings (

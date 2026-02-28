@@ -1,349 +1,181 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-interface Course {
-  id: number
-  course_code: string
-  name: string
-  category: string
-  department_name: string
-  teacher_name: string
-  credits: number
-  avg_rating: number | null
-  rating_count: number
-}
-
-interface Department {
-  id: number
-  name: string
-  course_count: number
-}
-
 const router = useRouter()
-const courses = ref<Course[]>([])
-const departments = ref<Department[]>([])
 const searchQuery = ref('')
-const selectedDept = ref('')
-const currentPage = ref(1)
-const totalCourses = ref(0)
-const loading = ref(false)
-const pageSize = 20
 
-async function fetchCourses() {
-  loading.value = true
-  try {
-    const params = new URLSearchParams()
-    if (searchQuery.value) params.set('q', searchQuery.value)
-    if (selectedDept.value) params.set('dept', selectedDept.value)
-    params.set('page', String(currentPage.value))
-    params.set('limit', String(pageSize))
-
-    const res = await fetch(`/api/courses?${params}`)
-    const data: { courses: Course[]; total: number } = await res.json()
-    courses.value = data.courses
-    totalCourses.value = data.total
-  } catch (e) {
-    console.error('获取课程失败:', e)
-  } finally {
-    loading.value = false
+function doSearch() {
+  const q = searchQuery.value.trim()
+  if (q) {
+    router.push({ path: '/all', query: { q } })
   }
 }
-
-async function fetchDepartments() {
-  try {
-    const res = await fetch('/api/departments')
-    const data: { departments: Department[] } = await res.json()
-    departments.value = data.departments
-  } catch (e) {
-    console.error('获取院系失败:', e)
-  }
-}
-
-function goToCourse(id: number) {
-  router.push(`/course/${id}`)
-}
-
-// 搜索防抖
-let debounceTimer: ReturnType<typeof setTimeout>
-watch(searchQuery, () => {
-  clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    currentPage.value = 1
-    fetchCourses()
-  }, 300)
-})
-
-watch(selectedDept, () => {
-  currentPage.value = 1
-  fetchCourses()
-})
-
-const totalPages = () => Math.ceil(totalCourses.value / pageSize)
-
-function prevPage() {
-  if (currentPage.value > 1) {
-    currentPage.value--
-    fetchCourses()
-  }
-}
-
-function nextPage() {
-  if (currentPage.value < totalPages()) {
-    currentPage.value++
-    fetchCourses()
-  }
-}
-
-onMounted(() => {
-  fetchCourses()
-  fetchDepartments()
-})
 </script>
 
 <template>
   <div class="home">
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="搜索课程名、教师名、课程号..."
-        class="search-input"
-      />
-    </div>
+    <div class="hero">
+      <div class="hero-icon">&#x1F393;</div>
+      <h2 class="hero-title">海大选课通</h2>
+      <p class="hero-subtitle">上海海事大学课程评价与信息共享平台</p>
 
-    <!-- 院系筛选 -->
-    <div class="dept-filter">
-      <button
-        :class="['dept-btn', { active: selectedDept === '' }]"
-        @click="selectedDept = ''"
-      >
-        全部
-      </button>
-      <button
-        v-for="dept in departments"
-        :key="dept.id"
-        :class="['dept-btn', { active: selectedDept === String(dept.id) }]"
-        @click="selectedDept = String(dept.id)"
-      >
-        {{ dept.name }} ({{ dept.course_count }})
-      </button>
-    </div>
-
-    <!-- 统计信息 -->
-    <div class="stats">
-      共 <strong>{{ totalCourses }}</strong> 门课程
-      <span v-if="searchQuery"> — 搜索: "{{ searchQuery }}"</span>
-    </div>
-
-    <!-- 课程列表 -->
-    <div v-if="loading" class="loading">加载中...</div>
-    <div v-else class="course-list">
-      <div
-        v-for="course in courses"
-        :key="course.id"
-        class="course-card"
-        @click="goToCourse(course.id)"
-      >
-        <div class="course-header">
-          <span class="course-name">{{ course.name }}</span>
-          <span v-if="course.avg_rating" class="course-rating">
-            {{ course.avg_rating }} 分
-          </span>
+      <form class="search-card elevation-2" @submit.prevent="doSearch">
+        <div class="search-field">
+          <span class="search-icon">&#x1F50D;</span>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索课程名、教师名、课程号..."
+            class="search-input"
+          />
         </div>
-        <div class="course-meta">
-          <span v-if="course.teacher_name">{{ course.teacher_name }}</span>
-          <span>{{ course.department_name }}</span>
-          <span v-if="course.credits">{{ course.credits }} 学分</span>
-          <span v-if="course.category" class="tag">{{ course.category }}</span>
-        </div>
-        <div class="course-code">{{ course.course_code }}</div>
-      </div>
+        <button type="submit" class="search-btn">搜索</button>
+      </form>
 
-      <div v-if="courses.length === 0 && !loading" class="empty">
-        没有找到匹配的课程
+      <div class="chip-group">
+        <RouterLink to="/hot" class="chip">
+          <span class="chip-icon">&#x1F525;</span>
+          热门课程
+        </RouterLink>
+        <RouterLink to="/all" class="chip">
+          <span class="chip-icon">&#x1F4DA;</span>
+          全部课程
+        </RouterLink>
       </div>
-    </div>
-
-    <!-- 分页 -->
-    <div v-if="totalPages() > 1" class="pagination">
-      <button :disabled="currentPage <= 1" @click="prevPage">上一页</button>
-      <span>{{ currentPage }} / {{ totalPages() }}</span>
-      <button :disabled="currentPage >= totalPages()" @click="nextPage">下一页</button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.search-bar {
-  margin-bottom: 16px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.search-input:focus {
-  border-color: #1a56db;
-  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
-}
-
-.dept-filter {
+.home {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-  max-height: 120px;
-  overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 56px - 48px);
 }
 
-.dept-btn {
-  padding: 4px 12px;
-  border: 1px solid #ddd;
-  border-radius: 16px;
-  background: #fff;
-  font-size: 13px;
-  color: #666;
-  white-space: nowrap;
-  transition: all 0.2s;
+.hero {
+  text-align: center;
+  width: 100%;
+  max-width: 520px;
+  padding: 0 16px;
 }
 
-.dept-btn:hover {
-  border-color: #1a56db;
-  color: #1a56db;
-}
-
-.dept-btn.active {
-  background: #1a56db;
-  color: #fff;
-  border-color: #1a56db;
-}
-
-.stats {
-  font-size: 14px;
-  color: #666;
+.hero-icon {
+  font-size: 48px;
   margin-bottom: 12px;
 }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #999;
-}
-
-.course-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.course-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-  border: 1px solid #eee;
-}
-
-.course-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.course-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.course-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
-.course-rating {
-  font-size: 14px;
-  font-weight: 600;
-  color: #f59e0b;
-}
-
-.course-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.course-meta span:not(:last-child)::after {
-  content: ' · ';
-  color: #ccc;
-}
-
-.tag {
-  padding: 1px 6px;
-  background: #f0f5ff;
+.hero-title {
+  font-size: 28px;
+  font-weight: 400;
   color: #1a56db;
-  border-radius: 4px;
-  font-size: 12px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
 }
 
-.tag::after {
-  content: '' !important;
+.hero-subtitle {
+  font-size: 14px;
+  color: #49454f;
+  margin-bottom: 32px;
+  letter-spacing: 0.25px;
 }
 
-.course-code {
-  font-size: 12px;
-  color: #aaa;
-  font-family: monospace;
+.search-card {
+  background: #fff;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  padding: 4px 4px 4px 16px;
+  gap: 8px;
+  transition: box-shadow 0.2s;
 }
 
-.empty {
-  text-align: center;
-  padding: 40px;
-  color: #999;
+.search-card:focus-within {
+  box-shadow: 0 4px 16px rgba(26, 86, 219, 0.24), 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-.pagination {
+.search-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-icon {
+  font-size: 18px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  padding: 12px 0;
+  background: transparent;
+  color: #1d1b20;
+}
+
+.search-input::placeholder {
+  color: #49454f;
+  opacity: 0.6;
+}
+
+.search-btn {
+  padding: 10px 24px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.search-btn:hover {
+  background: #1447b5;
+  box-shadow: 0 1px 3px rgba(26, 86, 219, 0.3);
+}
+
+.search-btn:active {
+  background: #0d3a96;
+}
+
+.chip-group {
+  margin-top: 24px;
   display: flex;
   justify-content: center;
+  gap: 12px;
+}
+
+.chip {
+  display: inline-flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 20px;
-  padding: 12px 0;
-}
-
-.pagination button {
+  gap: 6px;
   padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
+  background: #e8def8;
+  color: #1d1b20;
+  border-radius: 8px;
   font-size: 14px;
-  color: #333;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.25px;
 }
 
-.pagination button:hover:not(:disabled) {
-  border-color: #1a56db;
-  color: #1a56db;
+.chip:hover {
+  background: #d0bcff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  text-decoration: none;
 }
 
-.pagination button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.pagination span {
-  font-size: 14px;
-  color: #666;
+.chip-icon {
+  font-size: 16px;
 }
 </style>
