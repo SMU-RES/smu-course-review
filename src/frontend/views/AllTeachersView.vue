@@ -117,7 +117,6 @@ onMounted(() => {
           <span class="teacher-id">{{ teacher.id }}</span>
           <div class="card-stats">
             <span v-if="teacher.comment_count > 0" class="stat">&#x1F4AC; {{ teacher.comment_count }}</span>
-            <span v-if="teacher.rating_count > 0" class="stat">&#x2B50; {{ teacher.rating_count }}</span>
           </div>
         </div>
       </div>

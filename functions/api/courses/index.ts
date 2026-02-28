@@ -5,6 +5,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const db = context.env.DB
 
   const q = url.searchParams.get('q')?.trim() || ''
+  const field = url.searchParams.get('field') || '' // name | code | '' (all fields)
   const deptId = url.searchParams.get('dept')
   const sort = url.searchParams.get('sort') || 'id' // id | rating_count | avg_rating
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'))
@@ -15,13 +16,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const params: unknown[] = []
 
   if (q) {
-    conditions.push(`(c.name LIKE ? OR c.course_code LIKE ? OR EXISTS (
-      SELECT 1 FROM course_teachers ct2
-      JOIN teachers t2 ON ct2.teacher_id = t2.id
-      WHERE ct2.course_id = c.id AND t2.name LIKE ?
-    ))`)
     const like = `%${q}%`
-    params.push(like, like, like)
+    if (field === 'name') {
+      conditions.push('c.name LIKE ?')
+      params.push(like)
+    } else {
+      conditions.push(`(c.name LIKE ? OR c.course_code LIKE ? OR EXISTS (
+        SELECT 1 FROM course_teachers ct2
+        JOIN teachers t2 ON ct2.teacher_id = t2.id
+        WHERE ct2.course_id = c.id AND t2.name LIKE ?
+      ))`)
+      params.push(like, like, like)
+    }
   }
 
   if (deptId) {

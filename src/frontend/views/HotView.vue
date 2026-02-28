@@ -66,7 +66,6 @@ onMounted(fetchHot)
           </div>
           <div class="card-stats">
             <span class="stat">&#x1F4AC; {{ course.comment_count }} 条评论</span>
-            <span class="stat">&#x2B50; {{ course.rating_count }} 人评分</span>
           </div>
         </div>
       </div>

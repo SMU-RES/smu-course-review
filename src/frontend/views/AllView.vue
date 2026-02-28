@@ -17,8 +17,10 @@ async function fetchCourses() {
   loading.value = true
   try {
     const svc = await getDataService()
+    const field = (route.query.field as string) || undefined
     const data = await svc.getCourses({
       q: searchQuery.value.trim() || undefined,
+      field,
       page: page.value,
       limit,
     })
@@ -119,7 +121,6 @@ onMounted(() => {
           <span class="course-code">{{ course.course_code }}</span>
           <div class="card-stats">
             <span v-if="course.comment_count > 0" class="stat">&#x1F4AC; {{ course.comment_count }}</span>
-            <span v-if="course.rating_count > 0" class="stat">&#x2B50; {{ course.rating_count }}</span>
           </div>
         </div>
       </div>

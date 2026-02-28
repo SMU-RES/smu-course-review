@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { isStaticMode } from '@/services/data-service'
 
 const router = useRouter()
+const staticMode = isStaticMode()
 const searchQuery = ref('')
+const searchMode = ref<'course' | 'teacher'>('course')
+
+const placeholderText = computed(() => {
+  return searchMode.value === 'teacher' ? '输入教师姓名...' : '输入课程名称...'
+})
 
 function doSearch() {
   const q = searchQuery.value.trim()
-  if (q) {
-    router.push({ path: '/all', query: { q } })
+  if (!q) return
+  if (searchMode.value === 'teacher') {
+    router.push({ path: '/teachers', query: { q } })
+  } else {
+    router.push({ path: '/all', query: { q, field: 'name' } })
   }
 }
 </script>
@@ -20,20 +30,33 @@ function doSearch() {
       <h2 class="hero-title">海大选课通</h2>
       <p class="hero-subtitle">上海海事大学课程评价与信息共享平台</p>
 
+      <div class="search-mode" v-if="!staticMode">
+        <button
+          class="mode-chip"
+          :class="{ active: searchMode === 'course' }"
+          @click="searchMode = 'course'"
+        >课程名</button>
+        <button
+          class="mode-chip"
+          :class="{ active: searchMode === 'teacher' }"
+          @click="searchMode = 'teacher'"
+        >教师</button>
+      </div>
+
       <form class="search-card elevation-2" @submit.prevent="doSearch">
         <div class="search-field">
           <span class="search-icon">&#x1F50D;</span>
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索课程名、教师名、课程号..."
+            :placeholder="staticMode ? '搜索课程名、教师名、课程号...' : placeholderText"
             class="search-input"
           />
         </div>
         <button type="submit" class="search-btn">搜索</button>
       </form>
 
-      <div class="chip-group">
+      <div v-if="staticMode" class="chip-group">
         <RouterLink to="/hot" class="chip">
           <span class="chip-icon">&#x1F525;</span>
           热门课程
@@ -84,6 +107,38 @@ function doSearch() {
   color: #49454f;
   margin-bottom: 32px;
   letter-spacing: 0.25px;
+}
+
+.search-mode {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mode-chip {
+  padding: 6px 16px;
+  border: 1.5px solid #cac4d0;
+  background: transparent;
+  color: #49454f;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.25px;
+}
+
+.mode-chip:hover {
+  border-color: #1a56db;
+  color: #1a56db;
+  background: rgba(26, 86, 219, 0.04);
+}
+
+.mode-chip.active {
+  border-color: #1a56db;
+  background: #1a56db;
+  color: #fff;
 }
 
 .search-card {

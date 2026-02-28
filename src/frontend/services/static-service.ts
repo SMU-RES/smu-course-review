@@ -49,6 +49,7 @@ export class StaticService implements DataService {
 
   async getCourses(params: CourseListParams): Promise<{ courses: CourseListItem[]; total: number }> {
     const q = params.q?.trim() || ''
+    const field = params.field || ''
     const sort = params.sort || 'id'
     const page = Math.max(1, params.page || 1)
     const limit = Math.min(50, Math.max(1, params.limit || 20))
@@ -58,13 +59,18 @@ export class StaticService implements DataService {
     const sqlParams: unknown[] = []
 
     if (q) {
-      conditions.push(`(c.name LIKE ? OR c.course_code LIKE ? OR EXISTS (
-        SELECT 1 FROM course_teachers ct2
-        JOIN teachers t2 ON ct2.teacher_id = t2.id
-        WHERE ct2.course_id = c.id AND t2.name LIKE ?
-      ))`)
       const like = `%${q}%`
-      sqlParams.push(like, like, like)
+      if (field === 'name') {
+        conditions.push('c.name LIKE ?')
+        sqlParams.push(like)
+      } else {
+        conditions.push(`(c.name LIKE ? OR c.course_code LIKE ? OR EXISTS (
+          SELECT 1 FROM course_teachers ct2
+          JOIN teachers t2 ON ct2.teacher_id = t2.id
+          WHERE ct2.course_id = c.id AND t2.name LIKE ?
+        ))`)
+        sqlParams.push(like, like, like)
+      }
     }
 
     if (params.dept) {

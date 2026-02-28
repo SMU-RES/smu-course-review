@@ -17,6 +17,7 @@ export class ApiService implements DataService {
   async getCourses(params: CourseListParams): Promise<{ courses: CourseListItem[]; total: number }> {
     const sp = new URLSearchParams()
     if (params.q) sp.set('q', params.q)
+    if (params.field) sp.set('field', params.field)
     if (params.dept) sp.set('dept', params.dept)
     if (params.sort) sp.set('sort', params.sort)
     if (params.page) sp.set('page', String(params.page))

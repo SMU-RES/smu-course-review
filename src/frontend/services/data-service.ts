@@ -68,6 +68,7 @@ export interface RatingInfo {
 
 export interface CourseListParams {
   q?: string
+  field?: string
   dept?: string
   sort?: string
   page?: number
