@@ -1,44 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-interface CourseDetail {
-  id: number
-  course_code: string
-  name: string
-  category: string
-  department_name: string
-  credits: number
-  hours: number
-}
-
-interface Teacher {
-  id: string
-  name: string
-}
-
-interface Reply {
-  id: number
-  parent_id: number
-  nickname: string
-  content: string
-  created_at: string
-}
-
-interface Comment {
-  id: number
-  nickname: string
-  content: string
-  created_at: string
-  replies: Reply[]
-}
+import { getDataService, isStaticMode, type CourseDetail, type TeacherBrief, type Comment, type RatingInfo } from '@/services/data-service'
 
 const route = useRoute()
 const router = useRouter()
+const staticMode = isStaticMode()
 const course = ref<CourseDetail | null>(null)
-const teachers = ref<Teacher[]>([])
+const teachers = ref<TeacherBrief[]>([])
 const comments = ref<Comment[]>([])
-const ratingInfo = ref({ count: 0, average: 0 })
+const ratingInfo = ref<RatingInfo>({ count: 0, average: 0 })
 const loading = ref(true)
 const error = ref('')
 
@@ -63,13 +34,12 @@ async function fetchCourse() {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch(`/api/courses/${route.params.id}`)
-    if (!res.ok) {
+    const svc = await getDataService()
+    const data = await svc.getCourseDetail(route.params.id as string)
+    if (!data) {
       error.value = '课程不存在'
       return
     }
-    const data: { course: CourseDetail; teachers: Teacher[]; rating: typeof ratingInfo.value; comments: Comment[] } =
-      await res.json()
     course.value = data.course
     teachers.value = data.teachers
     ratingInfo.value = data.rating
@@ -247,7 +217,7 @@ onMounted(fetchCourse)
             <span class="rating-count">{{ ratingInfo.count }} 人评价</span>
           </div>
         </div>
-        <div class="rating-input">
+        <div v-if="!staticMode" class="rating-input">
           <span class="rate-label">我的评分</span>
           <div class="stars">
             <span
@@ -276,7 +246,7 @@ onMounted(fetchCourse)
         <h3 class="section-title">课程评价 ({{ comments.length }})</h3>
 
         <!-- 评论表单 -->
-        <div class="comment-form">
+        <div v-if="!staticMode" class="comment-form">
           <div class="form-field">
             <textarea
               v-model="commentContent"
@@ -310,7 +280,7 @@ onMounted(fetchCourse)
                   <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
                 </div>
                 <p class="comment-text">{{ comment.content }}</p>
-                <button class="reply-toggle" @click="toggleReply(comment.id)">
+                <button v-if="!staticMode" class="reply-toggle" @click="toggleReply(comment.id)">
                   {{ replyingTo === comment.id ? '取消回复' : '回复' }}
                 </button>
               </div>
@@ -357,7 +327,7 @@ onMounted(fetchCourse)
 
           <div v-if="comments.length === 0" class="empty-comments">
             <div class="empty-icon">&#x1F4AC;</div>
-            <p>暂无评价，来做第一个评价的人吧</p>
+            <p>{{ staticMode ? '暂无评价' : '暂无评价，来做第一个评价的人吧' }}</p>
           </div>
         </div>
       </div>

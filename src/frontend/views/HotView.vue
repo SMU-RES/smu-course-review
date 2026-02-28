@@ -1,29 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-
-interface Course {
-  id: number
-  course_code: string
-  name: string
-  category: string
-  credits: number
-  department_name: string
-  teacher_names: string | null
-  avg_rating: number | null
-  rating_count: number
-  comment_count: number
-}
+import { getDataService, type CourseListItem } from '@/services/data-service'
 
 const router = useRouter()
-const courses = ref<Course[]>([])
+const courses = ref<CourseListItem[]>([])
 const loading = ref(true)
 
 async function fetchHot() {
   loading.value = true
   try {
-    const res = await fetch('/api/courses?sort=rating_count&limit=50')
-    const data: { courses: Course[] } = await res.json()
+    const svc = await getDataService()
+    const data = await svc.getCourses({ sort: 'rating_count', limit: 50 })
     courses.value = data.courses.filter((c) => c.comment_count > 0 || c.rating_count > 0)
   } catch {
     // silent

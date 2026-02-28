@@ -1,24 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-
-interface Course {
-  id: number
-  course_code: string
-  name: string
-  category: string
-  credits: number
-  department_name: string
-  teacher_names: string | null
-  avg_rating: number | null
-  rating_count: number
-  comment_count: number
-}
+import { getDataService, type CourseListItem } from '@/services/data-service'
 
 const router = useRouter()
 const route = useRoute()
 
-const courses = ref<Course[]>([])
+const courses = ref<CourseListItem[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(true)
@@ -28,13 +16,12 @@ const limit = 20
 async function fetchCourses() {
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    if (searchQuery.value.trim()) params.set('q', searchQuery.value.trim())
-    params.set('page', String(page.value))
-    params.set('limit', String(limit))
-
-    const res = await fetch(`/api/courses?${params}`)
-    const data: { courses: Course[]; total: number } = await res.json()
+    const svc = await getDataService()
+    const data = await svc.getCourses({
+      q: searchQuery.value.trim() || undefined,
+      page: page.value,
+      limit,
+    })
     courses.value = data.courses
     total.value = data.total
   } catch {

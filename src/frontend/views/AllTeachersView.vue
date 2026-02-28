@@ -1,21 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-
-interface Teacher {
-  id: string
-  name: string
-  department_name: string
-  course_count: number
-  avg_rating: number | null
-  rating_count: number
-  comment_count: number
-}
+import { getDataService, type TeacherListItem } from '@/services/data-service'
 
 const router = useRouter()
 const route = useRoute()
 
-const teachers = ref<Teacher[]>([])
+const teachers = ref<TeacherListItem[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(true)
@@ -25,13 +16,12 @@ const limit = 20
 async function fetchTeachers() {
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    if (searchQuery.value.trim()) params.set('q', searchQuery.value.trim())
-    params.set('page', String(page.value))
-    params.set('limit', String(limit))
-
-    const res = await fetch(`/api/teachers?${params}`)
-    const data: { teachers: Teacher[]; total: number } = await res.json()
+    const svc = await getDataService()
+    const data = await svc.getTeachers({
+      q: searchQuery.value.trim() || undefined,
+      page: page.value,
+      limit,
+    })
     teachers.value = data.teachers
     total.value = data.total
   } catch {

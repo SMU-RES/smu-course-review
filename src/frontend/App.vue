@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { RouterView, RouterLink } from 'vue-router'
+import { isStaticMode } from '@/services/data-service'
+import StaticBanner from '@/components/StaticBanner.vue'
+
+const staticMode = isStaticMode()
 </script>
 
 <template>
   <div class="app">
+    <StaticBanner v-if="staticMode" />
     <header class="app-bar elevation-3">
       <div class="app-bar-inner">
         <RouterLink to="/" class="brand">
