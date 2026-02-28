@@ -2,8 +2,6 @@
 -- 由 import_courses.py 自动生成，请勿手动修改
 -- 上海海事大学 (SMU) 课程评价系统
 
-PRAGMA journal_mode=WAL;
-PRAGMA foreign_keys=ON;
 
 -- 院系
 CREATE TABLE IF NOT EXISTS departments (
