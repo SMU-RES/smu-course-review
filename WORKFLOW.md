@@ -28,7 +28,7 @@
 
 ---
 
-## Phase 1 — 数据准备
+## Phase 1 — 数据准备 ✅
 
 ### 1.1 数据清洗
 - 输入: `exportResult.xls`（上海海事大学教务系统导出，2675 条课程数据）
@@ -161,11 +161,11 @@ ratings (评分 — 每人每课只能评一次)
 | 0.2 | 注册 Cloudflare 新账号 | - | ✅ |
 | 0.3 | Wrangler CLI 认证 | 0.2 | ✅ |
 | 0.4 | 创建 D1 数据库 | 0.3 | ✅ |
-| 0.5 | 初始化本地 Git 仓库 + GPL-3.0 | - | 🔲 |
-| 0.6 | 项目骨架 (wrangler.toml, package.json) | 0.5 | 🔲 |
-| 1.1 | XLS → courses.json 数据清洗 | 0.5 | 🔲 |
-| 1.2 | 编写 schema.sql 建表 | - | 🔲 |
-| 1.3 | 编写 seed.sql + 导入 D1 | 1.1 + 1.2 | 🔲 |
+| 0.5 | 初始化本地 Git 仓库 + GPL-3.0 | - | ✅ |
+| 0.6 | 项目骨架 (wrangler.toml, package.json) | 0.5 | ✅ |
+| 1.1 | XLS → courses.json 数据清洗 | 0.5 | ✅ |
+| 1.2 | 编写 schema.sql 建表 | - | ✅ |
+| 1.3 | 编写 seed.sql + 导入 D1 | 1.1 + 1.2 | ✅ |
 | 1.4 | 本地 D1 验证数据完整性 | 1.3 | 🔲 |
 | 2.1 | Worker API: 课程查询 | 1.3 | 🔲 |
 | 2.2 | Worker API: 评论提交 | 1.2 | 🔲 |
