@@ -181,6 +181,54 @@ teacher_ratings (教师评分 — IP hash 去重)
 
 ---
 
+## Phase 3.7 — 静态只读镜像站 (SQLite WASM) ✅
+
+### 3.7.1 架构
+
+共用同一套 Vue 前端代码，通过 `VITE_STATIC_MODE` 环境变量切换：
+- **动态站**: `ApiService` — `fetch('/api/...')` → Worker → D1
+- **静态站**: `StaticService` — sql.js (SQLite WASM) 在客户端本地查询
+
+```
+DataService 接口
+├── ApiService (动态站) → fetch → Worker → D1
+└── StaticService (静态站) → sql.js → 本地 SQLite 文件
+```
+
+### 3.7.2 服务层
+
+| 文件 | 说明 |
+|------|------|
+| `src/frontend/services/data-service.ts` | 接口定义 + 工厂函数 `getDataService()` |
+| `src/frontend/services/api-service.ts` | 动态站实现（原有 fetch 抽取） |
+| `src/frontend/services/static-service.ts` | 静态站实现（sql.js WASM 查询） |
+
+### 3.7.3 静态模式 UI
+
+- `StaticBanner` 组件：顶部提示「只读镜像站，评论/评分请访问正式版」
+- 评分表单、评论表单、回复按钮：`v-if="!staticMode"` 隐藏
+- 空评论提示改为「暂无评价」（不显示「来做第一个」）
+
+### 3.7.4 构建与部署
+
+| 命令 | 说明 |
+|------|------|
+| `npm run build` | 构建动态站（默认） |
+| `npm run build:static` | 构建静态站（`--mode static`） |
+
+- `.env.static` — `VITE_STATIC_MODE=true` + 动态站链接
+- `tools/export_static_db.sh` — 从远程 D1 导出 → 脱敏（删 users 表、清 ip_hash/user_id） → `public/data/db.sqlite`
+- `.github/workflows/static-deploy.yml` — 每天自动：导出 D1 → 构建静态站 → 部署到 `smu-course-review-static.pages.dev`
+
+### 3.7.5 GitHub Secrets
+
+| Secret | 说明 |
+|--------|------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID |
+
+---
+
 ## Phase 4 — 用户认证（校园邮箱 Magic Code）🔲
 
 ### 4.1 方案
@@ -271,6 +319,13 @@ teacher_ratings (教师评分 — IP hash 去重)
 | 3.6 | 教师模块: 多对多关联 + 教师列表/搜索 API | 1.3 | ✅ |
 | 3.7 | 教师模块: 教师评分 + 评论 API | 3.6 | ✅ |
 | 3.8 | 教师模块: 全部教师页 + 教师详情页 | 3.6~3.7 | ✅ |
+| 3.9 | 静态站: DataService 抽象层 + ApiService | 3.x | ✅ |
+| 3.10 | 静态站: StaticService (sql.js WASM) | 3.9 | ✅ |
+| 3.11 | 静态站: 重构 Views 使用 DataService | 3.9 | ✅ |
+| 3.12 | 静态站: StaticBanner + 隐藏写入 UI | 3.11 | ✅ |
+| 3.13 | 静态站: 导出脚本 + GitHub Actions | 3.10 | ✅ |
+| 3.14 | 静态站: 在 CF 创建 smu-course-review-static 项目 | 3.13 | 🔲 |
+| 3.15 | 静态站: 配置 GitHub Secrets 并触发部署 | 3.14 | 🔲 |
 | 4.1 | 注册 Resend 获取 API Key | - | 🔲 |
 | 4.2 | 认证 API: send-code / verify / me | 4.1 | 🔲 |
 | 4.3 | 前端: 登录弹窗 + 用户状态管理 | 4.2 | 🔲 |
