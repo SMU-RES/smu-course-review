@@ -14,9 +14,6 @@ CREATE TABLE IF NOT EXISTS teachers (
     id            TEXT    PRIMARY KEY,
     name          TEXT    NOT NULL,
     department_id INTEGER,
-    avg_score     REAL    DEFAULT 0,
-    rating_count  INTEGER DEFAULT 0,
-    comment_count INTEGER DEFAULT 0,
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 CREATE INDEX IF NOT EXISTS idx_teachers_dept ON teachers(department_id);
@@ -30,9 +27,6 @@ CREATE TABLE IF NOT EXISTS courses (
     department_id INTEGER,
     credits       REAL    DEFAULT 0,
     hours         INTEGER DEFAULT 0,
-    avg_score     REAL    DEFAULT 0,
-    rating_count  INTEGER DEFAULT 0,
-    comment_count INTEGER DEFAULT 0,
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 CREATE INDEX IF NOT EXISTS idx_courses_dept ON courses(department_id);

@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS teachers (
     id            TEXT    PRIMARY KEY,
     name          TEXT    NOT NULL,
     department_id INTEGER,
+    avg_score     REAL    DEFAULT 0,
+    rating_count  INTEGER DEFAULT 0,
+    comment_count INTEGER DEFAULT 0,
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 CREATE INDEX IF NOT EXISTS idx_teachers_dept ON teachers(department_id);
@@ -61,6 +64,9 @@ CREATE TABLE IF NOT EXISTS courses (
     department_id INTEGER,
     credits       REAL    DEFAULT 0,
     hours         INTEGER DEFAULT 0,
+    avg_score     REAL    DEFAULT 0,
+    rating_count  INTEGER DEFAULT 0,
+    comment_count INTEGER DEFAULT 0,
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 CREATE INDEX IF NOT EXISTS idx_courses_dept ON courses(department_id);
@@ -286,58 +292,64 @@ def process_data(rows: list) -> dict:
 def generate_seed_sql(data: dict) -> str:
     lines = []
     lines.append("-- 海大选课通 种子数据")
-    lines.append("-- 由 import_courses.py 自动生成，请勿手动修改\n")
+    lines.append("-- 由 import_courses.py 自动生成，请勿手动修改")
+    lines.append("-- 增量导入：已存在的记录会被跳过\n")
 
-    # --- departments ---
+    # --- departments (用 name 做自然键，ID 由 AUTOINCREMENT 分配) ---
     lines.append("-- 院系（追加导入，已存在的跳过）")
-    for name, did in sorted(data["departments"].items(), key=lambda x: x[1]):
+    for name in sorted(data["departments"].keys()):
         lines.append(
-            f"INSERT OR IGNORE INTO departments (id, name) VALUES ({did}, '{escape_sql(name)}');"
+            f"INSERT OR IGNORE INTO departments (name) VALUES ('{escape_sql(name)}');"
         )
     lines.append("")
 
-    # --- teachers (ID = teacher_code TEXT) ---
+    # --- teachers (ID = teacher_code TEXT，通过 name 子查询关联 dept) ---
     lines.append("-- 教师（追加导入，已存在的跳过）")
+    dept_id_to_name = {v: k for k, v in data["departments"].items()}
     for tcode in sorted(data["teachers"].keys()):
         info = data["teachers"][tcode]
-        dept_str = str(info["dept_id"]) if info["dept_id"] else "NULL"
+        dept_name = dept_id_to_name.get(info["dept_id"])
+        if dept_name:
+            dept_expr = f"(SELECT id FROM departments WHERE name = '{escape_sql(dept_name)}')"
+        else:
+            dept_expr = "NULL"
         lines.append(
             f"INSERT OR IGNORE INTO teachers (id, name, department_id) "
-            f"VALUES ('{escape_sql(tcode)}', '{escape_sql(info['name'])}', {dept_str});"
+            f"VALUES ('{escape_sql(tcode)}', '{escape_sql(info['name'])}', {dept_expr});"
         )
     lines.append("")
 
-    # --- courses (按 course_code 去重，自增 ID) ---
+    # --- courses (不指定 ID，由 AUTOINCREMENT 分配，course_code UNIQUE 保证幂等) ---
     lines.append("-- 课程（追加导入，course_code 已存在的跳过）")
-    # 给每个 course_code 分配一个自增 ID
-    course_code_to_id = {}
-    for i, code in enumerate(sorted(data["courses"].keys()), start=1):
-        course_code_to_id[code] = i
+    for code in sorted(data["courses"].keys()):
         c = data["courses"][code]
-        dept_str = str(c["dept_id"]) if c["dept_id"] else "NULL"
+        dept_name = dept_id_to_name.get(c["dept_id"])
+        if dept_name:
+            dept_expr = f"(SELECT id FROM departments WHERE name = '{escape_sql(dept_name)}')"
+        else:
+            dept_expr = "NULL"
         lines.append(
             f"INSERT OR IGNORE INTO courses "
-            f"(id, course_code, name, category, department_id, credits, hours) VALUES ("
-            f"{i}, "
+            f"(course_code, name, category, department_id, credits, hours) VALUES ("
             f"'{escape_sql(code)}', "
             f"'{escape_sql(c['name'])}', "
             f"'{escape_sql(c['category'])}', "
-            f"{dept_str}, "
+            f"{dept_expr}, "
             f"{c['credits']}, "
             f"{c['hours']}"
             f");"
         )
     lines.append("")
 
-    # --- course_teachers ---
+    # --- course_teachers (通过 course_code 子查询获取 course_id) ---
     lines.append("-- 课程-教师关联（追加导入，已存在的跳过）")
     for course_code, tcode in sorted(data["course_teachers"]):
-        cid = course_code_to_id.get(course_code)
-        if cid is None:
+        if course_code not in data["courses"]:
             continue
         lines.append(
             f"INSERT OR IGNORE INTO course_teachers (course_id, teacher_id) "
-            f"VALUES ({cid}, '{escape_sql(tcode)}');"
+            f"VALUES ((SELECT id FROM courses WHERE course_code = '{escape_sql(course_code)}'), "
+            f"'{escape_sql(tcode)}');"
         )
 
     lines.append("")
