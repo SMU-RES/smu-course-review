@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.static
 .dev.vars
 
 # Dependencies
@@ -34,3 +35,5 @@ Desktop.ini
 
 # Generated data files
 db/seed.sql
+public/data/db.sqlite
+public/lib/sql-wasm.wasm
