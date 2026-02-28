@@ -2,6 +2,11 @@
 
 > AI 协作指南 — 本文件供 Claude / Copilot 等 AI 助手理解项目上下文
 
+## 开发环境规则
+
+- **Python 必须使用 uv 环境**：禁止直接使用 `python` 命令，必须使用 `uv run python` 来执行 Python 脚本。例如 `uv run python tools/import_courses.py`。
+- **Windows 环境**：不要使用 `pkill` 等 Linux 命令，不要 kill node 进程。
+
 ## 项目概述
 
 海大选课通是一个面向上海海事大学学生的课程评价与信息共享平台。

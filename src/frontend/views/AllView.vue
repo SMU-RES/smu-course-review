@@ -9,7 +9,7 @@ interface Course {
   category: string
   credits: number
   department_name: string
-  teacher_name: string
+  teacher_names: string | null
   avg_rating: number | null
   rating_count: number
   comment_count: number
@@ -123,7 +123,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="card-meta">
-          <span class="meta-chip">{{ course.teacher_name || '未知教师' }}</span>
+          <span class="meta-chip">{{ course.teacher_names || '未知教师' }}</span>
           <span class="meta-chip">{{ course.department_name }}</span>
           <span v-if="course.credits" class="meta-chip">{{ course.credits }}学分</span>
           <span v-if="course.category" class="meta-chip category">{{ course.category }}</span>

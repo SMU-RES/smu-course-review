@@ -31,3 +31,6 @@ Desktop.ini
 
 # Logs
 *.log
+
+# Generated data files
+db/seed.sql

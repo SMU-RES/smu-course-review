@@ -1,4 +1,4 @@
-// GET /api/courses/:id — 课程详情 + 评分统计 + 评论列表（含子评论）
+// GET /api/courses/:id — 课程详情 + 评分统计 + 教师列表 + 评论列表（含子评论）
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const id = context.params.id as string
@@ -7,12 +7,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // 课程基本信息
   const course = await db
     .prepare(
-      `SELECT c.id, c.course_code, c.course_seq, c.name, c.category,
+      `SELECT c.id, c.course_code, c.name, c.category,
               c.credits, c.hours,
-              d.name AS department_name, t.name AS teacher_name, t.teacher_code
+              d.name AS department_name
        FROM courses c
        LEFT JOIN departments d ON c.department_id = d.id
-       LEFT JOIN teachers t ON c.teacher_id = t.id
        WHERE c.id = ?`
     )
     .bind(id)
@@ -21,6 +20,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (!course) {
     return Response.json({ error: '课程不存在' }, { status: 404 })
   }
+
+  // 教师列表（多对多）
+  const { results: teachers } = await db
+    .prepare(
+      `SELECT t.id, t.name
+       FROM course_teachers ct
+       JOIN teachers t ON ct.teacher_id = t.id
+       WHERE ct.course_id = ?
+       ORDER BY t.name`
+    )
+    .bind(id)
+    .all()
 
   // 评分统计
   const ratingStats = await db
@@ -66,6 +77,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   return Response.json({
     course,
+    teachers,
     rating: {
       count: ratingStats?.count ?? 0,
       average: ratingStats?.average ?? 0,

@@ -15,7 +15,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const params: unknown[] = []
 
   if (q) {
-    conditions.push('(c.name LIKE ? OR t.name LIKE ? OR c.course_code LIKE ?)')
+    conditions.push(`(c.name LIKE ? OR c.course_code LIKE ? OR EXISTS (
+      SELECT 1 FROM course_teachers ct2
+      JOIN teachers t2 ON ct2.teacher_id = t2.id
+      WHERE ct2.course_id = c.id AND t2.name LIKE ?
+    ))`)
     const like = `%${q}%`
     params.push(like, like, like)
   }
@@ -38,26 +42,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // 总数
   const countResult = await db
     .prepare(
-      `SELECT COUNT(*) AS total FROM courses c
-       LEFT JOIN teachers t ON c.teacher_id = t.id
-       ${where}`
+      `SELECT COUNT(*) AS total FROM courses c ${where}`
     )
     .bind(...params)
     .first()
 
-  // 课程列表（含评分均值和评论数）
+  // 课程列表（含评分均值、评论数、教师名列表）
   const { results: courses } = await db
     .prepare(
       `SELECT c.id, c.course_code, c.name, c.category,
               c.credits, c.hours,
               d.name AS department_name,
-              t.name AS teacher_name,
+              (SELECT GROUP_CONCAT(t.name, ', ')
+               FROM course_teachers ct
+               JOIN teachers t ON ct.teacher_id = t.id
+               WHERE ct.course_id = c.id) AS teacher_names,
               ROUND(AVG(r.score), 1) AS avg_rating,
               COUNT(DISTINCT r.id) AS rating_count,
               (SELECT COUNT(*) FROM comments cm WHERE cm.course_id = c.id AND cm.parent_id IS NULL) AS comment_count
        FROM courses c
        LEFT JOIN departments d ON c.department_id = d.id
-       LEFT JOIN teachers t ON c.teacher_id = t.id
        LEFT JOIN ratings r ON c.id = r.course_id
        ${where}
        GROUP BY c.id

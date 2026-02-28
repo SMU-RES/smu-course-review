@@ -9,34 +9,38 @@ CREATE TABLE IF NOT EXISTS departments (
     name        TEXT    NOT NULL UNIQUE
 );
 
--- 教师
+-- 教师（ID 为 XLS 中方括号内的编号）
 CREATE TABLE IF NOT EXISTS teachers (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    id            TEXT    PRIMARY KEY,
     name          TEXT    NOT NULL,
-    teacher_code  TEXT,
     department_id INTEGER,
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 CREATE INDEX IF NOT EXISTS idx_teachers_dept ON teachers(department_id);
 
--- 课程
+-- 课程（按 course_code 合并去重）
 CREATE TABLE IF NOT EXISTS courses (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    course_code   TEXT,
-    course_seq    TEXT    UNIQUE,
+    course_code   TEXT    UNIQUE,
     name          TEXT    NOT NULL,
     category      TEXT,
     department_id INTEGER,
-    teacher_id    INTEGER,
     credits       REAL    DEFAULT 0,
     hours         INTEGER DEFAULT 0,
-    FOREIGN KEY (department_id) REFERENCES departments(id),
-    FOREIGN KEY (teacher_id)    REFERENCES teachers(id)
+    FOREIGN KEY (department_id) REFERENCES departments(id)
 );
-CREATE INDEX IF NOT EXISTS idx_courses_dept    ON courses(department_id);
-CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher_id);
-CREATE INDEX IF NOT EXISTS idx_courses_code    ON courses(course_code);
-CREATE INDEX IF NOT EXISTS idx_courses_name    ON courses(name);
+CREATE INDEX IF NOT EXISTS idx_courses_dept ON courses(department_id);
+CREATE INDEX IF NOT EXISTS idx_courses_code ON courses(course_code);
+CREATE INDEX IF NOT EXISTS idx_courses_name ON courses(name);
+
+-- 课程-教师关联（多对多）
+CREATE TABLE IF NOT EXISTS course_teachers (
+    course_id  INTEGER NOT NULL,
+    teacher_id TEXT    NOT NULL,
+    PRIMARY KEY (course_id, teacher_id),
+    FOREIGN KEY (course_id)  REFERENCES courses(id),
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id)
+);
 
 -- 用户（校园邮箱认证，无密码）
 CREATE TABLE IF NOT EXISTS users (

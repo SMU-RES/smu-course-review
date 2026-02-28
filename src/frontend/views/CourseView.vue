@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 interface CourseDetail {
   id: number
   course_code: string
-  course_seq: string
   name: string
   category: string
   department_name: string
-  teacher_name: string
-  teacher_code: string
   credits: number
   hours: number
+}
+
+interface Teacher {
+  id: string
+  name: string
 }
 
 interface Reply {
@@ -32,7 +34,9 @@ interface Comment {
 }
 
 const route = useRoute()
+const router = useRouter()
 const course = ref<CourseDetail | null>(null)
+const teachers = ref<Teacher[]>([])
 const comments = ref<Comment[]>([])
 const ratingInfo = ref({ count: 0, average: 0 })
 const loading = ref(true)
@@ -64,9 +68,10 @@ async function fetchCourse() {
       error.value = '课程不存在'
       return
     }
-    const data: { course: CourseDetail; rating: typeof ratingInfo.value; comments: Comment[] } =
+    const data: { course: CourseDetail; teachers: Teacher[]; rating: typeof ratingInfo.value; comments: Comment[] } =
       await res.json()
     course.value = data.course
+    teachers.value = data.teachers
     ratingInfo.value = data.rating
     comments.value = data.comments
   } catch {
@@ -171,6 +176,10 @@ function toggleReply(commentId: number) {
   }
 }
 
+function goToTeacher(id: string) {
+  router.push(`/teacher/${id}`)
+}
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -201,7 +210,13 @@ onMounted(fetchCourse)
         <div class="info-grid">
           <div class="info-item">
             <span class="info-label">教师</span>
-            <span class="info-value">{{ course.teacher_name || '未知' }}</span>
+            <span class="info-value" v-if="teachers.length > 0">
+              <template v-for="(t, i) in teachers" :key="t.id">
+                <a class="teacher-link" @click.stop="goToTeacher(t.id)">{{ t.name }}</a>
+                <span v-if="i < teachers.length - 1">、</span>
+              </template>
+            </span>
+            <span class="info-value" v-else>未知</span>
           </div>
           <div class="info-item">
             <span class="info-label">院系</span>
@@ -475,6 +490,17 @@ onMounted(fetchCourse)
 .mono {
   font-family: monospace;
   letter-spacing: 0.5px;
+}
+
+.teacher-link {
+  color: #1a56db;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.teacher-link:hover {
+  text-decoration: underline;
 }
 
 /* 评分 */
