@@ -1,4 +1,4 @@
-// GET /api/teachers/:id — 教师详情 + 授课列表（含评分评论统计）
+// GET /api/teachers/:id — 教师详情 + 授课列表 + 评分统计 + 评论列表
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const id = context.params.id as string
@@ -39,8 +39,55 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     .bind(id)
     .all()
 
+  // 教师评分统计
+  const ratingStats = await db
+    .prepare(
+      `SELECT COUNT(*) AS count, ROUND(AVG(score), 1) AS average
+       FROM teacher_ratings WHERE teacher_id = ?`
+    )
+    .bind(id)
+    .first()
+
+  // 教师顶级评论
+  const { results: topComments } = await db
+    .prepare(
+      `SELECT id, nickname, content, created_at FROM teacher_comments
+       WHERE teacher_id = ? AND parent_id IS NULL
+       ORDER BY created_at DESC LIMIT 100`
+    )
+    .bind(id)
+    .all()
+
+  // 教师子评论
+  const { results: replies } = await db
+    .prepare(
+      `SELECT id, parent_id, nickname, content, created_at FROM teacher_comments
+       WHERE teacher_id = ? AND parent_id IS NOT NULL
+       ORDER BY created_at ASC`
+    )
+    .bind(id)
+    .all()
+
+  // 组装评论树
+  const replyMap = new Map<number, typeof replies>()
+  for (const r of replies) {
+    const pid = r.parent_id as number
+    if (!replyMap.has(pid)) replyMap.set(pid, [])
+    replyMap.get(pid)!.push(r)
+  }
+
+  const comments = topComments.map((c) => ({
+    ...c,
+    replies: replyMap.get(c.id as number) || [],
+  }))
+
   return Response.json({
     teacher,
     courses,
+    rating: {
+      count: ratingStats?.count ?? 0,
+      average: ratingStats?.average ?? 0,
+    },
+    comments,
   })
 }

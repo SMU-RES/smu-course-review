@@ -111,6 +111,35 @@ CREATE TABLE IF NOT EXISTS ratings (
     FOREIGN KEY (user_id)   REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_ratings_course ON ratings(course_id);
+
+-- 教师评论（不限次数，支持一级子评论）
+CREATE TABLE IF NOT EXISTS teacher_comments (
+    id         INTEGER  PRIMARY KEY AUTOINCREMENT,
+    teacher_id TEXT     NOT NULL,
+    parent_id  INTEGER,
+    user_id    INTEGER,
+    nickname   TEXT     DEFAULT '匿名用户',
+    content    TEXT     NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+    FOREIGN KEY (parent_id) REFERENCES teacher_comments(id),
+    FOREIGN KEY (user_id)   REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_teacher_comments_teacher ON teacher_comments(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_comments_parent ON teacher_comments(parent_id);
+
+-- 教师评分（每人每教师仅一次）
+CREATE TABLE IF NOT EXISTS teacher_ratings (
+    id         INTEGER  PRIMARY KEY AUTOINCREMENT,
+    teacher_id TEXT     NOT NULL,
+    user_id    INTEGER,
+    score      INTEGER  NOT NULL CHECK(score BETWEEN 1 AND 5),
+    ip_hash    TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+    FOREIGN KEY (user_id)   REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_teacher_ratings_teacher ON teacher_ratings(teacher_id);
 """
 
 
