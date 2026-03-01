@@ -2,9 +2,9 @@ name: Deploy Static Mirror
 
 on:
   schedule:
-    - cron: '0 4 * * *'   # 每天 UTC 04:00 (北京时间 12:00)
-    - cron: '0 12 * * *'  # 每天 UTC 12:00 (北京时间 20:00)
-  workflow_dispatch:       # 手动触发
+    - cron: "0 4 * * *" # 每天 UTC 04:00 (北京时间 12:00)
+    - cron: "0 12 * * *" # 每天 UTC 12:00 (北京时间 20:00)
+  workflow_dispatch: # 手动触发
 
 jobs:
   build-and-deploy:
@@ -16,8 +16,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -47,4 +47,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=smu-course-review-static
+          command: --config=wrangler.static.toml pages deploy dist --project-name=smu-course-review-static

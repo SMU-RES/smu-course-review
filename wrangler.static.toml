@@ -1,0 +1,6 @@
+# 海大选课通静态镜像站专用配置
+# 注意：这里故意不声明 d1_databases，避免静态 Pages 项目被绑定 DB。
+
+name = "smu-course-review-static"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"
