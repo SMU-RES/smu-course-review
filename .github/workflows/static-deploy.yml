@@ -42,9 +42,12 @@ jobs:
       - name: Add SPA redirect
         run: echo '/*  /index.html  200' > dist/_redirects
 
+      - name: Use static Wrangler config
+        run: cp wrangler.static.toml wrangler.toml
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: --config=wrangler.static.toml pages deploy dist --project-name=smu-course-review-static
+          command: pages deploy dist --project-name=smu-course-review-static
