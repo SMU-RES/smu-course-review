@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterView, RouterLink } from 'vue-router'
 import { isStaticMode } from '@/services/data-service'
+import StaticBanner from '@/components/StaticBanner.vue'
 
 const staticMode = isStaticMode()
 </script>
@@ -20,6 +21,7 @@ const staticMode = isStaticMode()
         </nav>
       </div>
     </header>
+    <StaticBanner v-if="staticMode" />
     <main class="main-content">
       <div class="container">
         <RouterView />
